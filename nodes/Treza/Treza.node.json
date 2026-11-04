@@ -1,0 +1,15 @@
+{
+	"node": "n8n-nodes-treza.treza",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Marketing & Content", "Development"],
+	"alias": ["video", "image", "AI video", "generate video", "edit video", "captions", "media"],
+	"resources": {
+		"credentialDocumentation": [
+			{ "url": "https://github.com/treza-labs/n8n-nodes-treza?tab=readme-ov-file#credentials" }
+		],
+		"primaryDocumentation": [
+			{ "url": "https://github.com/treza-labs/n8n-nodes-treza?tab=readme-ov-file" }
+		]
+	}
+}

@@ -1,0 +1,90 @@
+{
+  "name": "Treza: post finished renders to Slack",
+  "nodes": [
+    {
+      "id": "6513ed9e-dce7-4068-9eca-aa0fec7e6c89",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -220
+      ],
+      "parameters": {
+        "width": 400,
+        "height": 300,
+        "content": "## Finished renders \u2192 Slack\nWatches one of your Treza pipelines. Every run that finishes posts its video link to a Slack channel, whether it started from the canvas, a schedule, the API or another workflow.\n\n**Set up:** pick the pipeline and the channel, and add your Treza and Slack credentials."
+      }
+    },
+    {
+      "id": "c6ac2410-81c9-44b2-beaf-0f4ccd8d611e",
+      "name": "Render finished",
+      "type": "n8n-nodes-treza.trezaTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "event": "runFinished",
+        "pipelineId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "statuses": [
+          "success",
+          "partial"
+        ],
+        "includeOutputs": true
+      }
+    },
+    {
+      "id": "7e2da693-aad2-4332-bfa0-b2090817278c",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "=New render finished ({{ $json.status }}, {{ Math.round($json.durationMs / 1000) }}s): {{ $json.url }}",
+        "otherOptions": {}
+      }
+    }
+  ],
+  "connections": {
+    "Render finished": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

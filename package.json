@@ -1,0 +1,63 @@
+{
+	"name": "n8n-nodes-treza",
+	"version": "0.1.0",
+	"description": "n8n community node for Treza: generate videos and images, edit footage, and run Treza pipelines from your workflows",
+	"license": "MIT",
+	"homepage": "https://github.com/treza-labs/n8n-nodes-treza",
+	"keywords": [
+		"n8n-community-node-package",
+		"n8n",
+		"treza",
+		"ai video",
+		"video generation",
+		"image generation",
+		"video editing",
+		"captions"
+	],
+	"author": {
+		"name": "Treza Labs",
+		"email": "hello@trezalabs.com",
+		"url": "https://www.trezalabs.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/treza-labs/n8n-nodes-treza.git"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease",
+		"test": "n8n-node build && node test/run.mjs"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/TrezaApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Treza/Treza.node.js",
+			"dist/nodes/TrezaTrigger/TrezaTrigger.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "^0.55.5",
+		"eslint": "9.32.0",
+		"prettier": "3.6.2",
+		"release-it": "^21.1.0",
+		"typescript": "5.9.2"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	},
+	"bugs": {
+		"url": "https://github.com/treza-labs/n8n-nodes-treza/issues"
+	}
+}

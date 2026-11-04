@@ -1,0 +1,196 @@
+{
+  "name": "Treza: three shots to a music video",
+  "nodes": [
+    {
+      "id": "5b28fb36-9ba9-40be-bccf-b224b1efe543",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -220
+      ],
+      "parameters": {
+        "width": 400,
+        "height": 300,
+        "content": "## Three shots \u2192 one music video\nGenerates three 4-second shots from a shot list, then cuts them together with fades and a composed music bed. The finished video comes out as binary data, ready for a YouTube, Drive or Slack node.\n\n**Set up:** add your Treza API credential and edit the shot list. Each shot has its own **Max Cost** of $2. Assembling is free once your account has bought credits."
+      }
+    },
+    {
+      "id": "7aa687ba-ba2f-4977-a0d4-1e83aca9faa3",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "34335d1a-603b-45d8-9ddb-2015b88ac936",
+      "name": "Shot list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e3bed9fb-1665-4335-b363-16de48299d40",
+              "name": "shots",
+              "type": "array",
+              "value": "=[\"Wide aerial of a misty pine forest at dawn, slow push in\", \"A red fox steps out of the ferns and looks toward camera\", \"Sunlight breaks through the canopy, dust in the light beams\"]"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6eca1a5e-671d-4089-91da-dc6f189ecc2c",
+      "name": "One item per shot",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "shots",
+        "options": {}
+      }
+    },
+    {
+      "id": "85897a8e-2e9f-4196-94ad-05c7fe193703",
+      "name": "Generate each shot",
+      "type": "n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $json.shots }}",
+        "aspectRatio": "16:9",
+        "durationSec": 4,
+        "maxCostUsd": 2,
+        "additionalFields": {
+          "withAudio": false
+        }
+      }
+    },
+    {
+      "id": "f3b3c34a-79f7-4637-b6f2-a5bc54a880d7",
+      "name": "Collect the clips",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "url"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3eeef697-8404-407d-855c-3c72f5c8334d",
+      "name": "Assemble with music",
+      "type": "n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "assemble",
+        "clipUrls": "={{ $json.url }}",
+        "additionalFields": {
+          "musicPrompt": "calm cinematic ambient, soft piano and strings, no vocals",
+          "transition": "fade",
+          "fadeOutSec": 2,
+          "audioFadeOutSec": 3,
+          "name": "Forest morning"
+        },
+        "download": true
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Shot list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shot list": {
+      "main": [
+        [
+          {
+            "node": "One item per shot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per shot": {
+      "main": [
+        [
+          {
+            "node": "Generate each shot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate each shot": {
+      "main": [
+        [
+          {
+            "node": "Collect the clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect the clips": {
+      "main": [
+        [
+          {
+            "node": "Assemble with music",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

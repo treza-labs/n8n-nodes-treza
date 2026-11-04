@@ -1,0 +1,170 @@
+{
+  "name": "Treza: sheet row to vertical video",
+  "nodes": [
+    {
+      "id": "e11b00c4-cd8b-4a5f-9521-e0faa6567080",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -220
+      ],
+      "parameters": {
+        "width": 400,
+        "height": 300,
+        "content": "## Sheet row \u2192 vertical video\nEach new row in a Google Sheet becomes a 9:16, 8-second clip, and the clip's link is written back to the row.\n\n**Sheet columns:** `prompt`, `title`, `video_url`, `status`\n\n**Set up:** pick your sheet in both Google Sheets nodes and add your Treza API credential. **Max Cost** stops any clip priced over $3 before anything is charged."
+      }
+    },
+    {
+      "id": "b3d453b7-0ece-4f92-876f-4cf008d9fda1",
+      "name": "New row in sheet",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "event": "rowAdded",
+        "options": {}
+      }
+    },
+    {
+      "id": "fc6d6305-a446-4aef-bb64-79a6a483522c",
+      "name": "Generate a video",
+      "type": "n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $json.prompt }}",
+        "aspectRatio": "9:16",
+        "durationSec": 8,
+        "maxCostUsd": 3,
+        "additionalFields": {
+          "name": "={{ $json.title }}"
+        }
+      }
+    },
+    {
+      "id": "67357a45-4562-4d46-b7de-53daeda2e919",
+      "name": "Write link to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('New row in sheet').item.json.row_number }}",
+            "video_url": "={{ $json.url }}",
+            "status": "={{ $json.timedOut ? 'still rendering: ' + $json.runId : 'done' }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "New row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Generate a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate a video": {
+      "main": [
+        [
+          {
+            "node": "Write link to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
