@@ -2,7 +2,7 @@
 
 ## 0.1.0 (2026-11-04)
 
-First version.
+First version, published to npm as `@treza/n8n-nodes-treza`.
 
 - **Treza** node: Video (Generate, Assemble), Image (Generate), Media (Edit, Import From URL, Upload), Pipeline (Run, Estimate Cost, Get Many), Run (Get, Get Many, Cancel, Wait for Completion), Account (Get Balance).
 - **Treza Trigger**: polls a pipeline and fires when a run finishes, filtered by status.

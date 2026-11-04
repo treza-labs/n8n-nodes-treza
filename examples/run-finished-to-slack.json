@@ -19,7 +19,7 @@
     {
       "id": "c6ac2410-81c9-44b2-beaf-0f4ccd8d611e",
       "name": "Render finished",
-      "type": "n8n-nodes-treza.trezaTrigger",
+      "type": "@treza/n8n-nodes-treza.trezaTrigger",
       "typeVersion": 1,
       "position": [
         0,

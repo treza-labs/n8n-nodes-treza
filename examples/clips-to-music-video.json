@@ -67,7 +67,7 @@
     {
       "id": "85897a8e-2e9f-4196-94ad-05c7fe193703",
       "name": "Generate each shot",
-      "type": "n8n-nodes-treza.treza",
+      "type": "@treza/n8n-nodes-treza.treza",
       "typeVersion": 1,
       "position": [
         660,
@@ -108,7 +108,7 @@
     {
       "id": "3eeef697-8404-407d-855c-3c72f5c8334d",
       "name": "Assemble with music",
-      "type": "n8n-nodes-treza.treza",
+      "type": "@treza/n8n-nodes-treza.treza",
       "typeVersion": 1,
       "position": [
         1100,

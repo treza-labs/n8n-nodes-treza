@@ -50,7 +50,7 @@
     {
       "id": "fc6d6305-a446-4aef-bb64-79a6a483522c",
       "name": "Generate a video",
-      "type": "n8n-nodes-treza.treza",
+      "type": "@treza/n8n-nodes-treza.treza",
       "typeVersion": 1,
       "position": [
         260,

@@ -1,4 +1,4 @@
-# n8n-nodes-treza
+# @treza/n8n-nodes-treza
 
 An [n8n](https://n8n.io/) community node for [Treza](https://www.trezalabs.com). With it a workflow can generate videos and images, edit footage, assemble finished cuts, and run your Treza pipelines.
 
@@ -12,7 +12,7 @@ Treza connects the best AI video and image models (Veo, Seedance, Kling, Gemini,
 
 ## Installation
 
-In n8n, go to **Settings → Community Nodes → Install** and enter `n8n-nodes-treza`. For other setups, see n8n's [community nodes installation guide](https://docs.n8n.io/integrations/community-nodes/installation/).
+In n8n, go to **Settings → Community Nodes → Install** and enter `@treza/n8n-nodes-treza`. For other setups, see n8n's [community nodes installation guide](https://docs.n8n.io/integrations/community-nodes/installation/).
 
 ## Credentials
 
