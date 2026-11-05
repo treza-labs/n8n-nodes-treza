@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.2 (unreleased)
+## 0.1.2 (2026-11-05)
 
 - **Pipeline → Run** asks Treza for the price of this run with its inputs (a longer source video costs more), checks it against Max Cost and runs at that quoted price. Before, the quote was for the pipeline as saved; when the inputs made the run cost more, it ran without a quote. Every pipeline run now has a quote.
 - If the price moves between the quote and the run (the pipeline was edited), the node asks for a new quote and checks it against Max Cost again.
