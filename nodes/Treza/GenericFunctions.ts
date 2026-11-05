@@ -141,15 +141,15 @@ export async function waitForRun(
 	}
 }
 
-/** Why a finished run failed, from the notes and the first step that broke. */
-function failureMessage(run: IDataObject): string {
+/** Why a finished run stopped short, from the notes and the first step that broke. */
+function stoppedMessage(run: IDataObject): string {
 	if (run.status === 'cancelled') {
 		return `The render was cancelled${typeof run.cancelReason === 'string' ? `: ${run.cancelReason}` : ''}`;
 	}
 	const nodes = Array.isArray(run.nodes) ? (run.nodes as IDataObject[]) : [];
 	const broken = nodes.find((node) => typeof node.error === 'string');
 	const reasons = [run.statusNote, run.refusalNote, broken && `${String(broken.label ?? broken.type)}: ${String(broken.error)}`];
-	return `The render failed. ${reasons.filter((reason) => typeof reason === 'string' && reason).join(' ')}`.trim();
+	return `The render stopped before it finished. ${reasons.filter((reason) => typeof reason === 'string' && reason).join(' ')}`.trim();
 }
 
 /** The finished file: the named output, or else the first URL among the outputs. */
@@ -160,15 +160,21 @@ export function primaryUrl(run: IDataObject, key?: string): string | undefined {
 }
 
 /**
+ * Fields Treza writes for an assistant in a chat (notes naming its other
+ * tools, what to say before starting a render). They mean nothing in a
+ * workflow, so items leave them out.
+ */
+export const CHAT_ONLY = ['note', 'goAheadNote', 'canvasDefaults'];
+
+/**
  * The item for a render: what started it (price, model, warnings) plus the
  * run, with the finished file's URL up front as `url`.
  */
 export function runJson(started: IDataObject, run: IDataObject | undefined, outputKey?: string, timedOut = false): IDataObject {
-	const json: IDataObject = { ...started };
-	delete json.note;
+	const json = omit(started, CHAT_ONLY);
 	if (!run) return json;
 	// pollAfterSec only paces polling, so it is left out.
-	Object.assign(json, omit(run, ['nodes', 'pollAfterSec', 'progress']));
+	Object.assign(json, omit(run, ['nodes', 'pollAfterSec', 'progress', ...CHAT_ONLY]));
 	const url = primaryUrl(run, outputKey);
 	if (url) json.url = url;
 	if (run.status === 'running') json.progress = run.progress;
@@ -178,7 +184,28 @@ export function runJson(started: IDataObject, run: IDataObject | undefined, outp
 	return json;
 }
 
-/** Wait for a run if asked, fail on a failed run, and download the file if asked. */
+/**
+ * A render item cut to the fields a workflow uses most (n8n's Simplify),
+ * most used first: the file, how it went, what it cost, and the IDs to look
+ * it up again. `timedOut`, `progress` and `statusNote` come along when set.
+ */
+export function simplifyRun(json: IDataObject): IDataObject {
+	return compact({
+		url: json.url,
+		status: json.status,
+		estimatedChargeUsd: json.estimatedChargeUsd,
+		model: json.model,
+		durationMs: json.durationMs,
+		outputs: json.outputs,
+		runId: json.runId,
+		pipelineId: json.pipelineId,
+		timedOut: json.timedOut,
+		progress: json.progress,
+		statusNote: json.statusNote,
+	});
+}
+
+/** Wait for a run if asked, stop the item on a run that didn't finish, and download the file if asked. */
 export async function finishRender(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -186,18 +213,19 @@ export async function finishRender(
 	pipelineId: string,
 	runId: string,
 	outputKey: string | undefined,
-	opts: { wait: boolean; timeoutMinutes: number; download: boolean; binaryPropertyName: string },
+	opts: { wait: boolean; timeoutMinutes: number; download: boolean; binaryPropertyName: string; simplify: boolean },
 ): Promise<{ json: IDataObject; binary?: Record<string, IBinaryData> }> {
 	const base = { ...started, pipelineId, runId };
 	if (!opts.wait) return { json: runJson(base, undefined) };
 	const { run, timedOut } = await waitForRun.call(this, pipelineId, runId, opts.timeoutMinutes);
 	if (!timedOut && (run.status === 'error' || run.status === 'cancelled')) {
-		throw new NodeOperationError(this.getNode(), failureMessage(run), {
+		throw new NodeOperationError(this.getNode(), stoppedMessage(run), {
 			itemIndex,
-			description: `Run ${runId} on pipeline ${pipelineId}`,
+			description: `Open the pipeline in Treza to see which step stopped (${await baseUrl.call(this)}/platform/pipelines/${pipelineId}, run ${runId}). Change the input or the model, then run this node again.`,
 		});
 	}
-	const json = runJson(base, run, outputKey, timedOut);
+	const full = runJson(base, run, outputKey, timedOut);
+	const json = opts.simplify ? simplifyRun(full) : full;
 	if (!opts.download || timedOut || typeof json.url !== 'string') return { json };
 	return { json, binary: { [opts.binaryPropertyName]: await downloadFile.call(this, json.url) } };
 }

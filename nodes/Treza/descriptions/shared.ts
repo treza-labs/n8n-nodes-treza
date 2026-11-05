@@ -48,6 +48,18 @@ export function maxCostField(show: Show, defaultUsd: number): INodeProperties {
 	};
 }
 
+/** n8n's Simplify switch, for items with more than 10 fields. */
+export function simplifyField(show: Show): INodeProperties {
+	return {
+		displayName: 'Simplify',
+		name: 'simplify',
+		type: 'boolean',
+		default: true,
+		description: 'Whether to return a simplified version of the response instead of the raw data',
+		displayOptions: { show },
+	};
+}
+
 /**
  * Wait for the render, and what to do with the finished file. With `toggle`
  * off (Run → Wait for Completion) waiting is the whole operation, so there is
@@ -56,6 +68,7 @@ export function maxCostField(show: Show, defaultUsd: number): INodeProperties {
 export function waitFields(show: Show, toggle = true): INodeProperties[] {
 	const waiting: Show = toggle ? { ...show, waitForCompletion: [true] } : show;
 	const fields: INodeProperties[] = [
+		simplifyField(waiting),
 		{
 			displayName: 'Download Output',
 			name: 'download',

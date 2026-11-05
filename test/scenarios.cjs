@@ -97,11 +97,19 @@ const rl = (value) => ({ __rl: true, mode: 'id', value });
 
 	await scenario('Video Generate: render fails → node error with the reason',
 		{ resource: 'video', operation: 'generate', prompt: 'otter [fail]', aspectRatio: '16:9', durationSec: 4, maxCostUsd: 2, additionalFields: {}, ...wait },
-		{}, ({ err }) => /render failed/.test(err.message) && /refused/.test(err.message));
+		{}, ({ err }) => /stopped before it finished/.test(err.message) && /refused/.test(err.message) && !/\b(error|fail)/i.test(err.message));
 
 	await scenario('Video Generate: wait times out → item with timedOut, no error (Retry On Fail cannot double-charge)',
 		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '16:9', durationSec: 4, maxCostUsd: 2, additionalFields: {}, ...wait, timeoutMinutes: 0.02 },
 		{}, ({ out }) => out[0].json.timedOut === true && out[0].json.status === 'running' && out[0].json.runId);
+
+	await scenario('Video Generate: Simplify (default) → at most 10 fields, no chat notes',
+		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '16:9', durationSec: 4, maxCostUsd: 2, additionalFields: {}, ...wait },
+		{}, ({ out }) => Object.keys(out[0].json).length <= 10 && out[0].json.url && out[0].json.runId && !('note' in out[0].json) && !('startedAt' in out[0].json));
+
+	await scenario('Video Generate: Simplify off → the full run, still no chat notes',
+		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '16:9', durationSec: 4, maxCostUsd: 2, additionalFields: {}, ...wait, simplify: false },
+		{}, ({ out }) => out[0].json.url && out[0].json.startedAt && out[0].json.finishedAt && !('note' in out[0].json) && !('canvasDefaults' in out[0].json));
 
 	await scenario('Video Generate: Wait for Completion off → run id straight away',
 		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '16:9', durationSec: 4, maxCostUsd: 2, additionalFields: {}, waitForCompletion: false },

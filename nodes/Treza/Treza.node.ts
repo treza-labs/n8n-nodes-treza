@@ -15,13 +15,16 @@ import { pipelineFields, pipelineOperations } from './descriptions/PipelineDescr
 import { runFields, runOperations } from './descriptions/RunDescription';
 import { videoFields, videoOperations } from './descriptions/VideoDescription';
 import {
+	CHAT_ONLY,
 	compact,
 	downloadFile,
 	finishRender,
 	isRefusal,
+	omit,
 	primaryUrl,
 	requestIdFor,
 	runJson,
+	simplifyRun,
 	toList,
 	toNodeError,
 	trezaRequest,
@@ -130,6 +133,7 @@ function waitOptions(this: IExecuteFunctions, i: number, toggle = true) {
 		timeoutMinutes: wait ? (this.getNodeParameter('timeoutMinutes', i) as number) : 0,
 		download: wait ? (this.getNodeParameter('download', i) as boolean) : false,
 		binaryPropertyName: wait ? (this.getNodeParameter('binaryPropertyName', i, 'data') as string) : 'data',
+		simplify: wait ? (this.getNodeParameter('simplify', i, true) as boolean) : false,
 	};
 }
 
@@ -367,7 +371,8 @@ async function runOperation(
 	}
 
 	if (resource === 'pipeline' && operation === 'estimateCost') {
-		return [{ json: await trezaRequest.call(this, 'estimate_run_cost', { pipelineId: pipelineIdParam.call(this, i) }) }];
+		const estimate = await trezaRequest.call(this, 'estimate_run_cost', { pipelineId: pipelineIdParam.call(this, i) });
+		return [{ json: omit(estimate, CHAT_ONLY) }];
 	}
 
 	if (resource === 'pipeline' && operation === 'getMany') {
@@ -385,7 +390,8 @@ async function runOperation(
 		if (operation === 'get') {
 			const runId = this.getNodeParameter('runId', i) as string;
 			const run = await trezaRequest.call(this, 'get_run', { pipelineId, runId });
-			const json = runJson({}, run);
+			const full = runJson({}, run);
+			const json = (this.getNodeParameter('simplify', i, true) as boolean) ? simplifyRun(full) : full;
 			const download = this.getNodeParameter('download', i) as boolean;
 			const url = primaryUrl(run);
 			if (!download || !url || run.status === 'running') return [{ json }];

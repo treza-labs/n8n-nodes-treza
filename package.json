@@ -1,6 +1,6 @@
 {
 	"name": "@treza/n8n-nodes-treza",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "n8n community node for Treza: generate videos and images, edit footage, and run Treza pipelines from your workflows",
 	"license": "MIT",
 	"homepage": "https://github.com/treza-labs/n8n-nodes-treza",

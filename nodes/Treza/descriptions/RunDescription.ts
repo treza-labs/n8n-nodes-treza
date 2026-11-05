@@ -1,5 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { pipelineLocator, waitFields } from './shared';
+import { pipelineLocator, simplifyField, waitFields } from './shared';
 
 const get = { resource: ['run'], operation: ['get'] };
 const getMany = { resource: ['run'], operation: ['getMany'] };
@@ -65,6 +65,7 @@ export const runFields: INodeProperties[] = [
 		displayOptions: { show: cancel },
 	},
 	...waitFields(wait, false),
+	simplifyField(get),
 	{
 		displayName: 'Download Output',
 		name: 'download',

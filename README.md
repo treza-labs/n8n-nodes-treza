@@ -40,7 +40,7 @@ Renders are paid from your Treza credit balance. Add credits in Treza before you
 
 **Treza Trigger** starts a workflow when a run of a pipeline finishes. You choose which endings count: succeeded, failed, partly finished or cancelled. Treza runs started anywhere fire it, whether from the canvas, a schedule, the API or another workflow.
 
-Render operations wait for the render to finish by default. They output its `url`, its `outputs`, and the `runId` and `pipelineId`. Turn on **Download Output** to get the file as binary data for the next node, for example to upload it to YouTube or Drive. Turn off **Wait for Completion** to output the run ID straight away, then pick the render up later with **Run → Wait for Completion**.
+Render operations wait for the render to finish by default. They output its `url`, its `outputs`, and the `runId` and `pipelineId`. **Simplify** (on by default) keeps the item to those and the price, model and duration; turn it off for everything Treza reports about the run. Turn on **Download Output** to get the file as binary data for the next node, for example to upload it to YouTube or Drive. Turn off **Wait for Completion** to output the run ID straight away, then pick the render up later with **Run → Wait for Completion**.
 
 The node can also be used as a tool by n8n's AI Agent.
 
