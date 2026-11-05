@@ -143,9 +143,10 @@ function pipelineIdParam(this: IExecuteFunctions, i: number): string {
 
 /**
  * Start a render at a price no higher than Max Cost. `quote` prepares it
- * (make_video, make_image or estimate_run_cost) and answers with the price and
- * a quoteId; the run starts only at that quoted price, once. Nothing is
- * charged when the price is over the cap or the balance is short.
+ * (make_video, make_image or estimate_run_cost, which is given the run's
+ * inputs) and answers with the price and a quoteId; the run starts only at
+ * that quoted price, once. Nothing is charged when the price is over the cap
+ * or the balance is short.
  */
 async function startQuoted(
 	this: IExecuteFunctions,
@@ -180,17 +181,9 @@ async function startQuoted(
 			const started = await trezaRequest.call(this, 'run_pipeline', args);
 			return { quoted, started, pipelineId };
 		} catch (error) {
-			if (attempt < 2 && isRefusal(error, ...STALE_QUOTE_CODES)) continue;
-			// The run's own inputs can price it above the canvas the quote was for.
-			// Still under the cap, it runs unquoted, once per item.
-			if (isRefusal(error, 'PRICE_CHANGED') && Number(error.body.estimatedChargeUsd) <= maxCostUsd) {
-				const started = await trezaRequest.call(this, 'run_pipeline', {
-					pipelineId,
-					...(inputs ? { inputs } : {}),
-					requestId: requestIdFor.call(this, i),
-				});
-				return { quoted: { ...quoted, estimatedChargeUsd: error.body.estimatedChargeUsd }, started, pipelineId };
-			}
+			// The quote priced this run with its inputs; a price that moved since
+			// (the pipeline was edited) is quoted again and checked against the cap.
+			if (attempt < 2 && isRefusal(error, ...STALE_QUOTE_CODES, 'PRICE_CHANGED')) continue;
 			if (isRefusal(error, 'PRICE_CHANGED')) {
 				throw overBudget.call(this, i, Number(error.body.estimatedChargeUsd), maxCostUsd);
 			}
@@ -354,7 +347,7 @@ async function runOperation(
 			this,
 			i,
 			maxCostUsd,
-			() => trezaRequest.call(this, 'estimate_run_cost', { pipelineId }),
+			() => trezaRequest.call(this, 'estimate_run_cost', compact({ pipelineId, inputs })),
 			inputs,
 		);
 		return [
@@ -371,7 +364,9 @@ async function runOperation(
 	}
 
 	if (resource === 'pipeline' && operation === 'estimateCost') {
-		const estimate = await trezaRequest.call(this, 'estimate_run_cost', { pipelineId: pipelineIdParam.call(this, i) });
+		const pipelineId = pipelineIdParam.call(this, i);
+		const inputs = await pipelineInputs.call(this, pipelineId, i, entryTypes);
+		const estimate = await trezaRequest.call(this, 'estimate_run_cost', compact({ pipelineId, inputs }));
 		return [{ json: omit(estimate, CHAT_ONLY) }];
 	}
 

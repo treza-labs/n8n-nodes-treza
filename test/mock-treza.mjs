@@ -26,6 +26,13 @@ const uploads = new Map();
 let balanceUsd = 10;
 const staleServed = new Set(); // "[stale:<id>]" goes stale on its first quote only, as a race would
 
+/** What a run costs with its inputs applied, as Treza prices it: a "long" Topic costs $3. */
+function runPrice(p, inputs) {
+	return p.id === 'pipeline_demo' && inputs && inputs.text_1 === 'long' ? 3 : p.priceUsd ?? 1;
+}
+// A "[raise]" Topic costs $1 more than its quote on the first run only, as a pipeline edited in between would.
+let raiseServed = false;
+
 function startRun(pipelineId, kind, extra = {}) {
 	const runId = `${now()}#${Math.random().toString(16).slice(2, 10)}`;
 	runs.set(runId, { runId, pipelineId, kind, polls: 0, startedAt: now(), fail: false, ...extra });
@@ -100,7 +107,8 @@ const tools = {
 	estimate_run_cost: (a) => {
 		const p = pipelines.get(a.pipelineId);
 		if (!p) return refuse(404, { error: 'Pipeline not found or access denied.' });
-		return quote(a.pipelineId, p.priceUsd ?? 1);
+		if (a.inputs !== undefined && (typeof a.inputs !== 'object' || Array.isArray(a.inputs))) return refuse(400, { error: 'inputs must be an object. Nothing was priced.' });
+		return quote(a.pipelineId, runPrice(p, a.inputs));
 	},
 	run_pipeline: (a) => {
 		const p = pipelines.get(a.pipelineId);
@@ -114,8 +122,12 @@ const tools = {
 				return refuse(400, { error: 'The pipeline changed after the quote priced it.', code: 'STALE_QUOTE', quotedChargeUsd: q.chargeUsd });
 			}
 			if (q.runId) return { runId: q.runId, pipelineId: a.pipelineId, status: 'running', startedAt: now(), repeat: true, note: 'Already started.' };
-			if (p.id === 'pipeline_demo' && a.inputs && a.inputs.text_1 === 'long') {
-				return refuse(400, { error: 'This run now costs $3.00, more than the $1.50 quote.', code: 'PRICE_CHANGED', quotedChargeUsd: 1.5, estimatedChargeUsd: 3 });
+			const raise = a.inputs?.text_1 === '[raise]' && !raiseServed;
+			// Scratch renders run at the price make_video or make_image quoted.
+			const price = p.id === 'pipeline_demo' ? runPrice(p, a.inputs) + (raise ? 1 : 0) : q.chargeUsd;
+			if (price > q.chargeUsd) {
+				raiseServed = true;
+				return refuse(400, { error: `This run now costs $${price.toFixed(2)}, more than the $${q.chargeUsd.toFixed(2)} quote.`, code: 'PRICE_CHANGED', quotedChargeUsd: q.chargeUsd, estimatedChargeUsd: price });
 			}
 			q.runId = startRun(a.pipelineId, p.kind ?? 'pipeline', { fail: p.fail, inputs: a.inputs });
 			return { runId: q.runId, status: 'running', startedAt: now(), note: 'Started.' };

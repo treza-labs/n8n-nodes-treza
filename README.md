@@ -33,7 +33,7 @@ Renders are paid from your Treza credit balance. Add credits in Treza before you
 | | Import From URL | Add a file at a public link to your Treza library. |
 | | Upload | Upload a binary file from the workflow to your Treza library. |
 | **Pipeline** | Run | Run one of your pipelines with new inputs (text, a file URL or JSON per input step). |
-| | Estimate Cost | Price one run of a pipeline and check that your balance covers it. |
+| | Estimate Cost | Price one run of a pipeline with the inputs you give it, and check that your balance covers it. |
 | | Get Many | List your pipelines. |
 | **Run** | Get / Get Many / Cancel / Wait for Completion | Check on renders, stop one, or wait for one started earlier. |
 | **Account** | Get Balance | Your credit balance and the link to top it up. |

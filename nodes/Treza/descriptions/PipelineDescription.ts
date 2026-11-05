@@ -49,8 +49,8 @@ export const pipelineFields: INodeProperties[] = [
 		placeholder: 'Add Input',
 		typeOptions: { multipleValues: true },
 		description:
-			'Values for the pipeline’s input steps. An input you leave out runs with the value saved in the pipeline.',
-		displayOptions: { show: run },
+			'Values for the pipeline’s input steps. An input you leave out runs with the value saved in the pipeline. The price is worked out with these inputs (a longer source video costs more).',
+		displayOptions: { show: { resource: ['pipeline'], operation: ['run', 'estimateCost'] } },
 		options: [
 			{
 				displayName: 'Input',

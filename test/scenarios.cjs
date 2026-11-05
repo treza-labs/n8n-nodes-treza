@@ -129,13 +129,28 @@ const rl = (value) => ({ __rl: true, mode: 'id', value });
 			return out[0].json.url && run.quoteId && run.inputs.payload_1.a === 1 && run.inputs.text_1 === 'hello';
 		});
 
-	await scenario('Pipeline Run: inputs raise the price (PRICE_CHANGED) but still under cap → runs once by requestId',
+	await scenario('Pipeline Run: the quote is priced with the run’s inputs → runs at that price, once',
 		{ resource: 'pipeline', operation: 'run', pipelineId: rl('pipeline_demo'), maxCostUsd: 5, inputs: { input: [{ entryNodeId: 'text_1', value: 'long' }] }, ...wait },
-		{}, ({ out, calls }) => out[0].json.estimatedChargeUsd === 3 && calls.filter((c) => c.tool === 'run_pipeline').length === 2 && calls.filter((c) => c.tool === 'run_pipeline')[1].args.requestId);
+		{}, ({ out, calls }) => {
+			const estimate = calls.find((c) => c.tool === 'estimate_run_cost').args;
+			const runs = calls.filter((c) => c.tool === 'run_pipeline');
+			return out[0].json.estimatedChargeUsd === 3 && estimate.inputs.text_1 === 'long' && runs.length === 1 && runs[0].args.quoteId && !runs[0].args.requestId;
+		});
 
-	await scenario('Pipeline Run: inputs raise the price over the cap → refused',
+	await scenario('Pipeline Run: inputs price it over the cap → refused before any run',
 		{ resource: 'pipeline', operation: 'run', pipelineId: rl('pipeline_demo'), maxCostUsd: 2, inputs: { input: [{ entryNodeId: 'text_1', value: 'long' }] }, ...wait },
-		{}, ({ err, calls }) => /costs \$3\.00, over the Max Cost of \$2\.00/.test(err.message) && calls.filter((c) => c.tool === 'run_pipeline').length === 1);
+		{}, ({ err, calls }) => /costs \$3\.00, over the Max Cost of \$2\.00/.test(err.message) && !calls.some((c) => c.tool === 'run_pipeline'));
+
+	await scenario('Pipeline Run: price moved after the quote (PRICE_CHANGED) → quoted again, runs quoted',
+		{ resource: 'pipeline', operation: 'run', pipelineId: rl('pipeline_demo'), maxCostUsd: 5, inputs: { input: [{ entryNodeId: 'text_1', value: '[raise]' }] }, ...wait },
+		{}, ({ out, calls }) => {
+			const runs = calls.filter((c) => c.tool === 'run_pipeline');
+			return out[0].json.url && calls.filter((c) => c.tool === 'estimate_run_cost').length === 2 && runs.length === 2 && runs.every((r) => r.args.quoteId && !r.args.requestId);
+		});
+
+	await scenario('Pipeline Estimate Cost: priced with the inputs',
+		{ resource: 'pipeline', operation: 'estimateCost', pipelineId: rl('pipeline_demo'), inputs: { input: [{ entryNodeId: 'text_1', value: 'long' }] } },
+		{}, ({ out, calls }) => out[0].json.estimatedChargeUsd === 3 && calls.find((c) => c.tool === 'estimate_run_cost').args.inputs.text_1 === 'long');
 
 	const exec = 'exec-42';
 	const asm = { resource: 'video', operation: 'assemble', clipUrls: 'https://a/1.mp4\nhttps://a/2.mp4', additionalFields: { musicPrompt: 'calm piano', captions: true }, waitForCompletion: false };
