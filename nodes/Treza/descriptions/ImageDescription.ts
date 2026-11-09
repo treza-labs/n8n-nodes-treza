@@ -34,28 +34,6 @@ export const imageFields: INodeProperties[] = [
 		description: 'What the picture shows, or with reference images, what to change about them',
 		displayOptions: { show: generate },
 	},
-	{
-		displayName: 'Aspect Ratio',
-		name: 'aspectRatio',
-		type: 'options',
-		default: '',
-		options: [
-			{ name: '1:1', value: '1:1' },
-			{ name: '16:9', value: '16:9' },
-			{ name: '2:3', value: '2:3' },
-			{ name: '21:9', value: '21:9' },
-			{ name: '3:2', value: '3:2' },
-			{ name: '3:4', value: '3:4' },
-			{ name: '4:3', value: '4:3' },
-			{ name: '4:5', value: '4:5' },
-			{ name: '5:4', value: '5:4' },
-			{ name: '9:16', value: '9:16' },
-			{ name: "Model's Choice", value: '' },
-		],
-		description:
-			"The picture's shape. Model's Choice gives a square, or the shape of the reference image.",
-		displayOptions: { show: generate },
-	},
 	maxCostField(generate, 0.5),
 	{
 		displayName: 'Additional Fields',
@@ -65,6 +43,27 @@ export const imageFields: INodeProperties[] = [
 		default: {},
 		displayOptions: { show: generate },
 		options: [
+			{
+				displayName: 'Aspect Ratio',
+				name: 'aspectRatio',
+				type: 'options',
+				default: '',
+				options: [
+					{ name: '1:1', value: '1:1' },
+					{ name: '16:9', value: '16:9' },
+					{ name: '2:3', value: '2:3' },
+					{ name: '21:9', value: '21:9' },
+					{ name: '3:2', value: '3:2' },
+					{ name: '3:4', value: '3:4' },
+					{ name: '4:3', value: '4:3' },
+					{ name: '4:5', value: '4:5' },
+					{ name: '5:4', value: '5:4' },
+					{ name: '9:16', value: '9:16' },
+					{ name: "Model's Choice", value: '' },
+				],
+				description:
+					"The picture's shape. Model's Choice gives a square, or the shape of the reference image.",
+			},
 			{
 				displayName: 'Model Name or ID',
 				name: 'model',

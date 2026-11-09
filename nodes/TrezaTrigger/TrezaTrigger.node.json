@@ -3,7 +3,7 @@
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Marketing & Content", "Development"],
-	"alias": ["video", "render finished", "pipeline run"],
+	"alias": ["Treza", "render finished", "pipeline run"],
 	"resources": {
 		"credentialDocumentation": [
 			{ "url": "https://github.com/treza-labs/n8n-nodes-treza?tab=readme-ov-file#credentials" }

@@ -211,6 +211,12 @@ function quoteSummary(quoted: IDataObject): IDataObject {
 	});
 }
 
+/** Name from Import From URL / Upload's Additional Fields. */
+function mediaName(this: IExecuteFunctions, i: number): string {
+	const { name } = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+	return typeof name === 'string' ? name : '';
+}
+
 async function runOperation(
 	this: IExecuteFunctions,
 	resource: string,
@@ -262,7 +268,6 @@ async function runOperation(
 		const references = toList(referenceImageUrls);
 		const args = compact({
 			prompt: this.getNodeParameter('prompt', i) as string,
-			aspectRatio: this.getNodeParameter('aspectRatio', i) as string,
 			maxPriceUsd: maxCostUsd,
 			...additional,
 			...(references.length ? { referenceImageUrls: references } : {}),
@@ -305,7 +310,7 @@ async function runOperation(
 		const imported = await trezaRequest.call(
 			this,
 			'import_media',
-			compact({ url: this.getNodeParameter('url', i) as string, name: this.getNodeParameter('name', i, '') as string }),
+			compact({ url: this.getNodeParameter('url', i) as string, name: mediaName.call(this, i) }),
 		);
 		return [{ json: imported }];
 	}
@@ -332,7 +337,7 @@ async function runOperation(
 			'import_media',
 			compact({
 				url: String(target.mediaUrl),
-				name: (this.getNodeParameter('name', i, '') as string) || file.fileName,
+				name: mediaName.call(this, i) || file.fileName,
 			}),
 		);
 		return [{ json: imported }];

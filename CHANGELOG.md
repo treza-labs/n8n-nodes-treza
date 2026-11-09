@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3 (2026-11-09)
+
+Changes asked for in n8n's review for verified community nodes.
+
+- **Image → Generate**: Aspect Ratio moved into Additional Fields.
+- **Media → Import From URL** and **Upload**: Name moved into Additional Fields.
+- The node panel finds Treza by "Treza", "Treza pipeline", "pipeline run" and "render finished", no longer by generic words such as "video" or "image".
+
+Workflows saved with 0.1.2 or earlier lose a set Aspect Ratio or Name on these operations: set it again under Additional Fields.
+
 ## 0.1.2 (2026-11-05)
 
 - **Pipeline → Run** asks Treza for the price of this run with its inputs (a longer source video costs more), checks it against Max Cost and runs at that quoted price. Before, the quote was for the pipeline as saved; when the inputs made the run cost more, it ran without a quote. Every pipeline run now has a quote.

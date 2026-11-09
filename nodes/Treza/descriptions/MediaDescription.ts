@@ -142,11 +142,20 @@ export const mediaFields: INodeProperties[] = [
 		displayOptions: { show: upload },
 	},
 	{
-		displayName: 'Name',
-		name: 'name',
-		type: 'string',
-		default: '',
-		description: 'What to call the file in your Treza library. Defaults to the file name.',
+		displayName: 'Additional Fields',
+		name: 'additionalFields',
+		type: 'collection',
+		placeholder: 'Add Field',
+		default: {},
 		displayOptions: { show: { resource: ['media'], operation: ['importFromUrl', 'upload'] } },
+		options: [
+			{
+				displayName: 'Name',
+				name: 'name',
+				type: 'string',
+				default: '',
+				description: 'What to call the file in your Treza library. Defaults to the file name.',
+			},
+		],
 	},
 ];
