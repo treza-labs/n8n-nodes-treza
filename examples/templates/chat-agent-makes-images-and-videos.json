@@ -12,7 +12,7 @@
       ],
       "parameters": {
         "width": 460,
-        "height": 840,
+        "height": 800,
         "content": "## An AI agent that makes pictures and video clips\nChat with an agent that can make an image or a short video clip when the conversation asks for one. It writes a detailed prompt, picks the shape, renders with Treza, and replies with the link.\n\n### How it works\n1. **Chat** receives your message in n8n's chat window.\n2. **Media agent** decides whether to answer, ask a question, or call a tool.\n3. **Make a picture** and **Make a video clip** are Treza tools. The agent fills in the prompt and shape; the spend cap is fixed on each tool, so the agent cannot spend more than you allow.\n4. **Chat memory** keeps the last messages so you can ask for changes.\n\n### Setup\n1. Add your OpenAI credential to **Chat model** (or swap in Anthropic, Gemini or another chat model).\n2. Add your Treza API credential to both Treza tools.\n3. Open the chat and ask for something, like a 16:9 picture of a neon city in the rain.\n\n### Customization\nRaise or lower **Max Cost** on each tool, change the clip length, or add more Treza tools such as Pipeline > Run to let the agent start your own Treza pipelines. Self-hosted n8n needs `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` to use community nodes as tools.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
       }
     },
@@ -26,7 +26,7 @@
         -140
       ],
       "parameters": {
-        "width": 480,
+        "width": 580,
         "height": 600,
         "content": "## 1. Talk to the agent\nThe chat model plans the answer and calls a Treza tool when you ask for media.",
         "color": 7
@@ -38,11 +38,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        460,
+        560,
         -140
       ],
       "parameters": {
-        "width": 520,
+        "width": 500,
         "height": 600,
         "content": "## 2. Treza tools\nEach tool has a fixed Max Cost, so the agent never spends more than you set.",
         "color": 7
@@ -114,7 +114,7 @@
       "type": "@treza/n8n-nodes-treza.trezaTool",
       "typeVersion": 1,
       "position": [
-        560,
+        640,
         340
       ],
       "parameters": {
@@ -135,7 +135,7 @@
       "type": "@treza/n8n-nodes-treza.trezaTool",
       "typeVersion": 1,
       "position": [
-        780,
+        860,
         340
       ],
       "parameters": {

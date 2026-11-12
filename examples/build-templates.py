@@ -137,9 +137,9 @@ f.overview(
     + REQUIREMENTS,
     h=760,
 )
-f.section("Note: shots", (-40, -140), 520, 420, "## 1. Your shots\nEdit the shot list, shape, clip length, music and spend cap in **Settings**. Each shot becomes one item.")
-f.section("Note: render", (500, -140), 300, 420, "## 2. Render each shot\nTreza quotes each clip first and stops, with nothing charged, if it costs more than Max Cost.")
-f.section("Note: cut", (820, -140), 520, 420, "## 3. Cut and score\nThe clips are joined in order with fades and a composed music bed. The MP4 is in the `video` binary field.")
+f.section("Note: shots", (-40, -140), 600, 420, "## 1. Your shots\nEdit the shot list, shape, clip length, music and spend cap in **Settings**. Each shot becomes one item.")
+f.section("Note: render", (580, -140), 260, 420, "## 2. Render each shot\nTreza quotes each clip first and stops, with nothing charged, if it costs more than Max Cost.")
+f.section("Note: cut", (860, -140), 400, 420, "## 3. Cut and score\nThe clips are joined in order with fades and a composed music bed. The MP4 is in the `video` binary field.")
 start = f.add("Start", "n8n-nodes-base.manualTrigger", 1, (0, 100), {})
 st = settings(f, (220, 100), [
     ("shots", "array", '=["Wide aerial of a misty pine forest at dawn, slow push in", "A red fox steps out of the ferns and looks toward camera", "Sunlight breaks through the canopy, dust drifting in the light beams"]'),
@@ -341,10 +341,10 @@ f.overview(
     "Run to let the agent start your own Treza pipelines. Self-hosted n8n needs "
     "`N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` to use community nodes as tools.\n\n"
     + REQUIREMENTS,
-    h=840,
+    h=800,
 )
-f.section("Note: talk", (-40, -140), 480, 600, "## 1. Talk to the agent\nThe chat model plans the answer and calls a Treza tool when you ask for media.")
-f.section("Note: tools", (460, -140), 520, 600, "## 2. Treza tools\nEach tool has a fixed Max Cost, so the agent never spends more than you set.")
+f.section("Note: talk", (-40, -140), 580, 600, "## 1. Talk to the agent\nThe chat model plans the answer and calls a Treza tool when you ask for media.")
+f.section("Note: tools", (560, -140), 500, 600, "## 2. Treza tools\nEach tool has a fixed Max Cost, so the agent never spends more than you set.")
 chat = f.add("Chat", "@n8n/n8n-nodes-langchain.chatTrigger", 1.4, (0, 100), {"options": {}}, webhookId=str(uuid.uuid5(NS, "chat-agent/webhook")))
 agent = f.add("Media agent", "@n8n/n8n-nodes-langchain.agent", 3.1, (240, 100), {
     "options": {"systemMessage": (
@@ -357,7 +357,7 @@ agent = f.add("Media agent", "@n8n/n8n-nodes-langchain.agent", 3.1, (240, 100), 
 })
 model = f.add("Chat model", "@n8n/n8n-nodes-langchain.lmChatOpenAi", 1.3, (120, 340), {"model": rl("gpt-5-mini"), "options": {}})
 memory = f.add("Chat memory", "@n8n/n8n-nodes-langchain.memoryBufferWindow", 1.3, (300, 340), {"contextWindowLength": 10})
-pic = f.add("Make a picture", TREZA_TOOL, 1, (560, 340), {
+pic = f.add("Make a picture", TREZA_TOOL, 1, (640, 340), {
     "descriptionType": "manual",
     "toolDescription": "Makes one AI image from a detailed prompt and returns its link.",
     "resource": "image",
@@ -366,7 +366,7 @@ pic = f.add("Make a picture", TREZA_TOOL, 1, (560, 340), {
     "maxCostUsd": 0.25,
     "additionalFields": {"aspectRatio": "={{ $fromAI('aspectRatio', 'Shape of the picture: 16:9, 9:16, 1:1, 4:5 or 3:2', 'string') }}"},
 })
-vid = f.add("Make a video clip", TREZA_TOOL, 1, (780, 340), {
+vid = f.add("Make a video clip", TREZA_TOOL, 1, (860, 340), {
     "descriptionType": "manual",
     "toolDescription": "Makes one short AI video clip (about 4 seconds) from a detailed prompt and returns its link. Takes a minute or two.",
     "resource": "video",
