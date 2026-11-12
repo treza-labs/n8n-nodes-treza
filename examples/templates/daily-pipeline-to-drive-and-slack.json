@@ -1,0 +1,222 @@
+{
+  "name": "Run a Treza video pipeline every morning, save the video to Google Drive and share it in Slack",
+  "nodes": [
+    {
+      "id": "f7677b40-d1a9-5acc-9ec4-ceb17832d235",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 700,
+        "content": "## Your Treza pipeline every morning, filed and shared\nRuns one of your Treza pipelines on a schedule, saves the finished video to a Google Drive folder with a dated name, and posts the Drive link in Slack. Good for a daily Short, a news recap or any recurring edit your team reviews before posting.\n\n### How it works\n1. **Every morning** starts the workflow at 8:00.\n2. **Settings** holds the spend cap and the file name prefix.\n3. **Run the pipeline** gets a quote, stops if it is over **Max Cost**, waits for the render and downloads the video.\n4. **Save to Google Drive** uploads it as `<prefix> <date>.mp4`.\n5. **Share in Slack** posts the Drive link to a channel.\n\n### Setup\n1. Build or pick a pipeline at trezalabs.com and choose it in **Run the pipeline**.\n2. Add your Treza, Google Drive and Slack credentials.\n3. Pick the Drive folder and the Slack channel, then activate.\n\n### Customization\nChange the time in **Every morning**, map new inputs into the pipeline (a topic from a sheet, a feed item), or replace Slack with email. For long renders, raise **Timeout** on the Treza node.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
+      }
+    },
+    {
+      "id": "5ecab796-5596-523f-9ac3-20738791afa2",
+      "name": "Note: run",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 720,
+        "height": 420,
+        "content": "## 1. Run the pipeline\nOn schedule, Treza quotes the run, stops if it is over Max Cost, renders it and downloads the video.",
+        "color": 7
+      }
+    },
+    {
+      "id": "74ad3b00-bd98-5b50-8657-05e823b3ed10",
+      "name": "Note: share",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        -140
+      ],
+      "parameters": {
+        "width": 520,
+        "height": 420,
+        "content": "## 2. File and share\nThe video is saved to Drive with a dated name, then the Drive link is posted in Slack.",
+        "color": 7
+      }
+    },
+    {
+      "id": "cc1eca40-cb85-5146-96b6-ae1028030e8e",
+      "name": "Every morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c0b3d50f-1b57-5c78-9723-cffee1c4d9df",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2a7142fd-9878-5b95-bbd3-7f69a65c9607",
+              "name": "maxCostUsd",
+              "type": "number",
+              "value": 5
+            },
+            {
+              "id": "5c554f32-b61e-5d41-a836-76d0af3ba9bc",
+              "name": "fileNamePrefix",
+              "type": "string",
+              "value": "Daily video"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0a1cde87-561e-54d3-8592-da4ba15193a8",
+      "name": "Run the pipeline",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        460,
+        100
+      ],
+      "parameters": {
+        "resource": "pipeline",
+        "operation": "run",
+        "pipelineId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "maxCostUsd": "={{ $('Settings').item.json.maxCostUsd }}",
+        "download": true,
+        "binaryPropertyName": "video"
+      }
+    },
+    {
+      "id": "66568706-29f5-5bcc-983a-f6b26fdda698",
+      "name": "Save to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        760,
+        100
+      ],
+      "parameters": {
+        "inputDataFieldName": "video",
+        "name": "={{ $('Settings').item.json.fileNamePrefix }} {{ $now.toFormat('yyyy-MM-dd') }}.mp4",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root",
+          "cachedResultName": "/ (Root folder)"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f7c79f2a-df1e-5247-be58-0f6046633c86",
+      "name": "Share in Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1000,
+        100
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "=Today's video is ready: {{ $json.webViewLink }}",
+        "otherOptions": {}
+      },
+      "webhookId": "1387058c-a6b7-5797-b6fa-9546c576b7f2"
+    }
+  ],
+  "connections": {
+    "Every morning": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Run the pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run the pipeline": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Share in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

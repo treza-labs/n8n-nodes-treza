@@ -1,0 +1,260 @@
+{
+  "name": "Email AI pictures to people who fill in a form, with Treza and Gmail",
+  "nodes": [
+    {
+      "id": "319b9948-e3d4-54f2-8a82-7be16c2fafba",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 760,
+        "content": "## Pictures from form replies, sent by email\nShare a form that asks what picture someone wants. Each reply becomes an AI image, and the person gets it in their inbox as an attachment a few seconds later. Useful for giveaways, event booths, lead magnets and classroom activities.\n\n### How it works\n1. **Picture request form** collects an email address, a description and a style.\n2. **Settings** holds the shape, the spend cap and the email text.\n3. **Make the picture** gets a quote, stops if it is over **Max Cost**, renders the image and downloads it.\n4. **Email the picture** sends it from your Gmail with the image attached.\n\n### Setup\n1. Add your Treza API credential to **Make the picture**.\n2. Connect your Google account in **Email the picture**.\n3. Activate the workflow and open the form's Production URL.\n\n### Customization\nEdit the styles in the form, change the shape or the email wording in **Settings**, or swap Gmail for Outlook or Send Email. Keep **Max Cost** low on a public form, since every reply spends credits.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
+      }
+    },
+    {
+      "id": "283fab0d-797f-5733-8768-bf2a0c7e49af",
+      "name": "Note: ask",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 420,
+        "content": "## 1. Ask\nThe form asks for an email address, what to show and a style. **Settings** holds the shape, spend cap and email text.",
+        "color": 7
+      }
+    },
+    {
+      "id": "8834309d-01b5-5e7b-a089-43f700c95884",
+      "name": "Note: make",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -140
+      ],
+      "parameters": {
+        "width": 300,
+        "height": 420,
+        "content": "## 2. Make the picture\nTreza quotes the image first and stops if it costs more than Max Cost.",
+        "color": 7
+      }
+    },
+    {
+      "id": "61a66eda-7437-57b7-b867-d31ac7123a96",
+      "name": "Note: send",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        -140
+      ],
+      "parameters": {
+        "width": 300,
+        "height": 420,
+        "content": "## 3. Send it\nThe image goes out as an attachment from your Gmail.",
+        "color": 7
+      }
+    },
+    {
+      "id": "60958aeb-95ed-5c8e-9723-457123cbb85f",
+      "name": "Picture request form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "formTitle": "Get a picture made for you",
+        "formDescription": "Describe a picture and we'll email it to you in a minute.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "you@example.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "What should the picture show?",
+              "fieldType": "textarea",
+              "placeholder": "A lighthouse on a cliff during a thunderstorm",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Style",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Photo"
+                  },
+                  {
+                    "option": "Illustration"
+                  },
+                  {
+                    "option": "Watercolor"
+                  },
+                  {
+                    "option": "3D render"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Thanks! Your picture is on its way to your inbox."
+            }
+          }
+        }
+      },
+      "webhookId": "cd2bd2da-4ae2-56dc-b749-672523e640bb"
+    },
+    {
+      "id": "1f4086c4-72c7-58bc-94b1-c3418aa9fa59",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "286ef4d8-0530-5ab2-bf0d-b743a0ca3e88",
+              "name": "aspectRatio",
+              "type": "string",
+              "value": "1:1"
+            },
+            {
+              "id": "4f50fca4-0334-51e3-a9aa-333e00406a70",
+              "name": "maxCostUsd",
+              "type": "number",
+              "value": 0.25
+            },
+            {
+              "id": "777bf13f-e730-5a5e-b01b-e477f7e76616",
+              "name": "emailSubject",
+              "type": "string",
+              "value": "Your picture is ready"
+            },
+            {
+              "id": "e53a477e-0f76-5651-801f-dd5a98f6570a",
+              "name": "emailBody",
+              "type": "string",
+              "value": "Here is the picture you asked for. Thanks for trying it!"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      }
+    },
+    {
+      "id": "e85f17cc-f467-559f-8d7d-dca463d2f9e4",
+      "name": "Make the picture",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "parameters": {
+        "resource": "image",
+        "operation": "generate",
+        "prompt": "={{ $json['What should the picture show?'] }}, {{ $json.Style.toLowerCase() }} style",
+        "maxCostUsd": "={{ $json.maxCostUsd }}",
+        "additionalFields": {
+          "aspectRatio": "={{ $json.aspectRatio }}"
+        },
+        "download": true,
+        "binaryPropertyName": "picture"
+      }
+    },
+    {
+      "id": "80a2f9de-b5ec-5ebd-ac2b-1f4cf0b4de81",
+      "name": "Email the picture",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        100
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Picture request form').item.json.Email }}",
+        "subject": "={{ $('Settings').item.json.emailSubject }}",
+        "emailType": "text",
+        "message": "={{ $('Settings').item.json.emailBody }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "picture"
+              }
+            ]
+          }
+        }
+      },
+      "webhookId": "17553a14-cfa3-5043-a0b4-edc75793bb6e"
+    }
+  ],
+  "connections": {
+    "Picture request form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Make the picture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make the picture": {
+      "main": [
+        [
+          {
+            "node": "Email the picture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

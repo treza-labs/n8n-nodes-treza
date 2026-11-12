@@ -1,0 +1,265 @@
+{
+  "name": "Turn new Google Sheets rows into vertical AI videos with Treza",
+  "nodes": [
+    {
+      "id": "239b7752-100d-5c6c-a287-3851d741289a",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 760,
+        "content": "## A vertical video for every new row\nPlan short videos in a spreadsheet. Each new row becomes a 9:16 AI video clip, and the clip's link and status are written back to the same row, so the sheet doubles as your content calendar.\n\n### How it works\n1. **New row in sheet** checks the sheet every minute for added rows.\n2. **Settings** sets the shape, the length and the spend cap for every clip.\n3. **Generate the video** gets a quote from Treza, stops if it is over **Max Cost**, and waits for the render.\n4. **Write the link back** fills in `video_url` and `status` on the row that started it.\n\n### Setup\n1. Make a sheet with the columns `prompt`, `title`, `video_url` and `status`.\n2. Pick that sheet in both Google Sheets nodes and connect your Google account.\n3. Add your Treza API credential to **Generate the video**.\n4. Activate the workflow and add a row with a prompt.\n\n### Customization\nChange the shape to 16:9 or 1:1 in **Settings**, or the length up to the model's limit. To post the clip somewhere, add a YouTube, TikTok or Slack node after **Generate the video**.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
+      }
+    },
+    {
+      "id": "5f744eaf-f284-5b29-bdf4-28d86372d915",
+      "name": "Note: plan",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 420,
+        "content": "## 1. Plan in a sheet\nEvery new row with a `prompt` starts one video. **Settings** holds the shape, length and spend cap.",
+        "color": 7
+      }
+    },
+    {
+      "id": "487a7788-edec-55ec-8e3f-15cba540655c",
+      "name": "Note: render",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -140
+      ],
+      "parameters": {
+        "width": 300,
+        "height": 420,
+        "content": "## 2. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost.",
+        "color": 7
+      }
+    },
+    {
+      "id": "2dc26d98-3af6-55fb-af55-5d4b05696c1c",
+      "name": "Note: write back",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        -140
+      ],
+      "parameters": {
+        "width": 300,
+        "height": 420,
+        "content": "## 3. Write back\nThe video link and a status land on the same row.",
+        "color": 7
+      }
+    },
+    {
+      "id": "b7475e93-8af5-5f8a-a8b3-ca7d4534d09f",
+      "name": "New row in sheet",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "event": "rowAdded",
+        "options": {}
+      }
+    },
+    {
+      "id": "fdb0746d-c36d-5424-acbb-1fae9dbad322",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5e2f6a7a-a6d8-5151-a8f7-5f1393241f3f",
+              "name": "aspectRatio",
+              "type": "string",
+              "value": "9:16"
+            },
+            {
+              "id": "50ff3759-5226-5b12-80b0-b90944a91687",
+              "name": "seconds",
+              "type": "number",
+              "value": 8
+            },
+            {
+              "id": "be7326d4-e16b-5a53-a7c3-5eb915d93b9b",
+              "name": "maxCostUsd",
+              "type": "number",
+              "value": 3
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      }
+    },
+    {
+      "id": "aec5b463-8ad9-504c-8083-8aa215503cbc",
+      "name": "Generate the video",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $json.prompt }}",
+        "aspectRatio": "={{ $json.aspectRatio }}",
+        "durationSec": "={{ $json.seconds }}",
+        "maxCostUsd": "={{ $json.maxCostUsd }}",
+        "additionalFields": {
+          "name": "={{ $json.title }}"
+        }
+      }
+    },
+    {
+      "id": "f9e1d11a-ee21-5ba5-9a74-a83804e238df",
+      "name": "Write the link back",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        820,
+        100
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('New row in sheet').item.json.row_number }}",
+            "video_url": "={{ $json.url }}",
+            "status": "={{ $json.timedOut ? 'still rendering: ' + $json.runId : 'done' }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "New row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Generate the video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate the video": {
+      "main": [
+        [
+          {
+            "node": "Write the link back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

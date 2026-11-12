@@ -1,0 +1,220 @@
+{
+  "name": "Chat with an AI agent that makes images and video clips with Treza tools",
+  "nodes": [
+    {
+      "id": "83245da0-7783-5f44-a2a6-5ef7991415ef",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 840,
+        "content": "## An AI agent that makes pictures and video clips\nChat with an agent that can make an image or a short video clip when the conversation asks for one. It writes a detailed prompt, picks the shape, renders with Treza, and replies with the link.\n\n### How it works\n1. **Chat** receives your message in n8n's chat window.\n2. **Media agent** decides whether to answer, ask a question, or call a tool.\n3. **Make a picture** and **Make a video clip** are Treza tools. The agent fills in the prompt and shape; the spend cap is fixed on each tool, so the agent cannot spend more than you allow.\n4. **Chat memory** keeps the last messages so you can ask for changes.\n\n### Setup\n1. Add your OpenAI credential to **Chat model** (or swap in Anthropic, Gemini or another chat model).\n2. Add your Treza API credential to both Treza tools.\n3. Open the chat and ask for something, like a 16:9 picture of a neon city in the rain.\n\n### Customization\nRaise or lower **Max Cost** on each tool, change the clip length, or add more Treza tools such as Pipeline > Run to let the agent start your own Treza pipelines. Self-hosted n8n needs `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` to use community nodes as tools.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
+      }
+    },
+    {
+      "id": "ab156a57-ce7b-50a5-83c7-7ad9446bd408",
+      "name": "Note: talk",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 480,
+        "height": 600,
+        "content": "## 1. Talk to the agent\nThe chat model plans the answer and calls a Treza tool when you ask for media.",
+        "color": 7
+      }
+    },
+    {
+      "id": "e61b11af-411a-5d41-9ec5-4f7a16decd2c",
+      "name": "Note: tools",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        460,
+        -140
+      ],
+      "parameters": {
+        "width": 520,
+        "height": 600,
+        "content": "## 2. Treza tools\nEach tool has a fixed Max Cost, so the agent never spends more than you set.",
+        "color": 7
+      }
+    },
+    {
+      "id": "e09108e6-7d74-5959-a2f4-deeacc68612f",
+      "name": "Chat",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "options": {}
+      },
+      "webhookId": "3decb314-5d08-5cda-bf24-d3ebfdb5e4f0"
+    },
+    {
+      "id": "05859d70-02ef-57f7-a072-f9ee37075eb3",
+      "name": "Media agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "options": {
+          "systemMessage": "You make pictures and short video clips with the Treza tools.\n- When someone asks for media, write a detailed visual prompt: subject, setting, light, camera, style.\n- Pick the shape from the request (16:9 for screens, 9:16 for phones and Shorts, 1:1 for posts).\n- Use Make a picture for images and Make a video clip for motion. Ask one short question if the request is unclear.\n- Reply with the file link and one line on what you made. If a tool says the price is over the cap, say so and suggest a cheaper option."
+        }
+      }
+    },
+    {
+      "id": "b182d7c2-9be0-57a1-97be-f1371cccf066",
+      "name": "Chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        120,
+        340
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c9c1b6ed-a206-5301-a32f-d98b8eb290a9",
+      "name": "Chat memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        300,
+        340
+      ],
+      "parameters": {
+        "contextWindowLength": 10
+      }
+    },
+    {
+      "id": "ad95bf99-5191-5bf4-8c4f-9de6136451e7",
+      "name": "Make a picture",
+      "type": "@treza/n8n-nodes-treza.trezaTool",
+      "typeVersion": 1,
+      "position": [
+        560,
+        340
+      ],
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Makes one AI image from a detailed prompt and returns its link.",
+        "resource": "image",
+        "operation": "generate",
+        "prompt": "={{ $fromAI('prompt', 'A detailed description of the picture: subject, setting, light, style', 'string') }}",
+        "maxCostUsd": 0.25,
+        "additionalFields": {
+          "aspectRatio": "={{ $fromAI('aspectRatio', 'Shape of the picture: 16:9, 9:16, 1:1, 4:5 or 3:2', 'string') }}"
+        }
+      }
+    },
+    {
+      "id": "e9e88548-808e-5b43-96f7-98e8233f314c",
+      "name": "Make a video clip",
+      "type": "@treza/n8n-nodes-treza.trezaTool",
+      "typeVersion": 1,
+      "position": [
+        780,
+        340
+      ],
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Makes one short AI video clip (about 4 seconds) from a detailed prompt and returns its link. Takes a minute or two.",
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $fromAI('prompt', 'A detailed description of the shot: subject, action, camera move, light, style', 'string') }}",
+        "aspectRatio": "={{ $fromAI('aspectRatio', 'Shape of the clip: 16:9, 9:16 or 1:1', 'string') }}",
+        "durationSec": 4,
+        "maxCostUsd": 1,
+        "additionalFields": {
+          "withAudio": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Chat": {
+      "main": [
+        [
+          {
+            "node": "Media agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Media agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Media agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make a picture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Media agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make a video clip": {
+      "ai_tool": [
+        [
+          {
+            "node": "Media agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

@@ -1,0 +1,275 @@
+{
+  "name": "Generate AI video shots from a shot list and cut them into a scored video with Treza",
+  "nodes": [
+    {
+      "id": "abbcf6eb-5dcb-5203-ae60-ca9885ce27f4",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 760,
+        "content": "## Turn a shot list into a finished music video\nWrite a few lines describing shots. This workflow generates each shot as an AI video clip, then cuts the clips together in order with fades and an original music bed composed for the edit. The finished MP4 comes out as binary data, ready for a YouTube, Google Drive or Slack node.\n\n### How it works\n1. **Settings** holds the shot list, the shape, the clip length, the music style and the spend cap.\n2. **One item per shot** splits the list so each shot renders on its own.\n3. **Generate each shot** asks Treza for a quote, stops if it is over **Max Cost**, then renders the clip.\n4. **Collect the clips** gathers the clip links in order.\n5. **Cut and score** assembles them with transitions and composed music, and downloads the result.\n\n### Setup\n1. Add your Treza API credential to both Treza nodes.\n2. Edit the shots in **Settings**. Each line is one shot.\n3. Press **Execute workflow**. Three 4-second clips take a few minutes.\n\n### Customization\nChange the shape to 9:16 for Shorts and Reels, raise the clip length, or swap the music prompt. Replace the manual start with a Schedule or a Google Sheets trigger to make one video a day.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
+      }
+    },
+    {
+      "id": "dfd86b14-211d-58dd-ac61-00ee721300e2",
+      "name": "Note: shots",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 520,
+        "height": 420,
+        "content": "## 1. Your shots\nEdit the shot list, shape, clip length, music and spend cap in **Settings**. Each shot becomes one item.",
+        "color": 7
+      }
+    },
+    {
+      "id": "d2061b5d-bd4f-5c59-ac49-53ff51621eb5",
+      "name": "Note: render",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        500,
+        -140
+      ],
+      "parameters": {
+        "width": 300,
+        "height": 420,
+        "content": "## 2. Render each shot\nTreza quotes each clip first and stops, with nothing charged, if it costs more than Max Cost.",
+        "color": 7
+      }
+    },
+    {
+      "id": "a474c2f4-e583-5925-a78a-b84e81222308",
+      "name": "Note: cut",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        820,
+        -140
+      ],
+      "parameters": {
+        "width": 520,
+        "height": 420,
+        "content": "## 3. Cut and score\nThe clips are joined in order with fades and a composed music bed. The MP4 is in the `video` binary field.",
+        "color": 7
+      }
+    },
+    {
+      "id": "1b4d311f-cc79-56fc-b3dc-2fbe3e8ec853",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "943290ff-8447-5869-a888-df1b25375ae8",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5307cc1b-50ec-5000-bbf5-bda7d7c51afd",
+              "name": "shots",
+              "type": "array",
+              "value": "=[\"Wide aerial of a misty pine forest at dawn, slow push in\", \"A red fox steps out of the ferns and looks toward camera\", \"Sunlight breaks through the canopy, dust drifting in the light beams\"]"
+            },
+            {
+              "id": "08fe1451-8e1f-5127-9131-a507142af072",
+              "name": "aspectRatio",
+              "type": "string",
+              "value": "16:9"
+            },
+            {
+              "id": "b60316cc-d841-57ac-9f28-d739a1baaddf",
+              "name": "clipSeconds",
+              "type": "number",
+              "value": 4
+            },
+            {
+              "id": "f86eaaa3-2a90-5c75-aaa2-db2f5d212c31",
+              "name": "maxCostPerShotUsd",
+              "type": "number",
+              "value": 2
+            },
+            {
+              "id": "44047dd1-d6cb-53d2-afbf-3cc1e459bf73",
+              "name": "musicPrompt",
+              "type": "string",
+              "value": "calm cinematic ambient, soft piano and strings, no vocals"
+            },
+            {
+              "id": "cb1f9a25-4486-5181-bbfb-754d6431c986",
+              "name": "title",
+              "type": "string",
+              "value": "Forest morning"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4060286f-3f59-5ea7-b3d8-a983fc7d72df",
+      "name": "One item per shot",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        420,
+        100
+      ],
+      "parameters": {
+        "fieldToSplitOut": "shots",
+        "options": {}
+      }
+    },
+    {
+      "id": "f78f5e27-4443-5bce-bfc3-192b618e6aba",
+      "name": "Generate each shot",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        620,
+        100
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $json.shots }}",
+        "aspectRatio": "={{ $('Settings').item.json.aspectRatio }}",
+        "durationSec": "={{ $('Settings').item.json.clipSeconds }}",
+        "maxCostUsd": "={{ $('Settings').item.json.maxCostPerShotUsd }}",
+        "additionalFields": {
+          "withAudio": false
+        }
+      }
+    },
+    {
+      "id": "d96cff40-7f77-5fd5-99c7-b22b508e0171",
+      "name": "Collect the clips",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "url"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "88bacbf9-5d77-5fe9-9bad-d0d5318705b3",
+      "name": "Cut and score",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        100
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "assemble",
+        "clipUrls": "={{ $json.url }}",
+        "additionalFields": {
+          "musicPrompt": "={{ $('Settings').item.json.musicPrompt }}",
+          "transition": "fade",
+          "fadeOutSec": 2,
+          "audioFadeOutSec": 3,
+          "name": "={{ $('Settings').item.json.title }}"
+        },
+        "download": true,
+        "binaryPropertyName": "video"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "One item per shot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per shot": {
+      "main": [
+        [
+          {
+            "node": "Generate each shot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate each shot": {
+      "main": [
+        [
+          {
+            "node": "Collect the clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect the clips": {
+      "main": [
+        [
+          {
+            "node": "Cut and score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
