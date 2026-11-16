@@ -69,14 +69,16 @@ class Flow:
         assert 100 <= words <= 300, (self.slug, words)
         return self.note("Overview", (-560, -300), 460, h, content)
 
-    def link(self, a, b, kind="main"):
-        self.links.append((a, b, kind))
+    def link(self, a, b, kind="main", out=0):
+        self.links.append((a, b, kind, out))
 
     def json(self):
         connections = {}
-        for a, b, kind in self.links:
-            outs = connections.setdefault(a, {}).setdefault(kind, [[]])
-            outs[0].append({"node": b, "type": kind, "index": 0})
+        for a, b, kind, out in self.links:
+            outs = connections.setdefault(a, {}).setdefault(kind, [])
+            while len(outs) <= out:
+                outs.append([])
+            outs[out].append({"node": b, "type": kind, "index": 0})
         return {
             "name": self.name,
             "nodes": self.nodes,
@@ -184,27 +186,30 @@ f.write()
 f = Flow("sheet-rows-to-vertical-videos", "Turn new Google Sheets rows into vertical AI videos with Treza")
 f.overview(
     "## A vertical video for every new row\n"
-    "Plan short videos in a spreadsheet. Each new row becomes a 9:16 AI video clip, and the clip's link and status "
-    "are written back to the same row, so the sheet doubles as your content calendar.\n\n"
+    "Plan short videos in a spreadsheet. Each new row with a prompt becomes a 9:16 AI video clip. The row is marked "
+    "while it renders, and the clip's link and status are written back to it, so the sheet works as your content "
+    "calendar and shows what is done.\n\n"
     "### How it works\n"
     "1. **New row in sheet** checks the sheet every minute for added rows.\n"
-    "2. **Settings** sets the shape, the length and the spend cap for every clip.\n"
-    "3. **Generate the video** gets a quote from Treza, stops if it is over **Max Cost**, and waits for the render.\n"
-    "4. **Write the link back** fills in `video_url` and `status` on the row that started it.\n\n"
+    "2. **Settings** sets the shape, the length, the spend cap and how long to wait for a render.\n"
+    "3. **Has a prompt?** skips rows without one, so notes and blank lines start nothing.\n"
+    "4. **Mark as rendering** sets the row's `status`, so you can see it is being made.\n"
+    "5. **Generate the video** gets a quote, stops if it is over **Max Cost**, and waits for the clip.\n"
+    "6. **Still rendering?** sends a long render to **Wait for the render**, which keeps checking for up to 30 more minutes.\n"
+    "7. **Write the link back** fills in `video_url` and `status`.\n\n"
     "### Setup\n"
     "1. Make a sheet with the columns `prompt`, `title`, `video_url` and `status`.\n"
-    "2. Pick that sheet in both Google Sheets nodes and connect your Google account.\n"
-    "3. Add your Treza API credential to **Generate the video**.\n"
+    "2. Pick that sheet in the three Google Sheets nodes and connect your Google account.\n"
+    "3. Add your Treza API credential to both Treza nodes.\n"
     "4. Activate the workflow and add a row with a prompt.\n\n"
     "### Customization\n"
-    "Change the shape to 16:9 or 1:1 in **Settings**, or the length up to the model's limit. To post the clip "
-    "somewhere, add a YouTube, TikTok or Slack node after **Generate the video**.\n\n"
+    "Change the shape or length in **Settings**. To post each clip, add a YouTube, TikTok or Slack node after **Write the link back**.\n\n"
     + REQUIREMENTS,
-    h=760,
+    h=900,
 )
-f.section("Note: plan", (-40, -140), 460, 420, "## 1. Plan in a sheet\nEvery new row with a `prompt` starts one video. **Settings** holds the shape, length and spend cap.")
-f.section("Note: render", (440, -140), 300, 420, "## 2. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost.")
-f.section("Note: write back", (760, -140), 300, 420, "## 3. Write back\nThe video link and a status land on the same row.")
+f.section("Note: plan", (-40, -140), 780, 460, "## 1. Pick up new rows\nRows with a `prompt` go on and are marked as rendering. **Settings** holds the shape, length and spend cap.")
+f.section("Note: render", (760, -140), 420, 460, "## 2. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. A long render is waited on.")
+f.section("Note: write back", (1200, -140), 300, 460, "## 3. Write back\nThe video link and a status land on the same row.")
 trig = f.add("New row in sheet", "n8n-nodes-base.googleSheetsTrigger", 1, (0, 100), {
     "pollTimes": {"item": [{"mode": "everyMinute"}]},
     "documentId": rl(),
@@ -212,44 +217,81 @@ trig = f.add("New row in sheet", "n8n-nodes-base.googleSheetsTrigger", 1, (0, 10
     "event": "rowAdded",
     "options": {},
 })
-st = settings(f, (220, 100), [
+st = settings(f, (200, 100), [
     ("aspectRatio", "string", "9:16"),
     ("seconds", "number", 8),
     ("maxCostUsd", "number", 3),
+    ("waitMinutes", "number", 10),
 ], keep_input=True)
-gen = f.add("Generate the video", TREZA, 1, (500, 100), {
-    "resource": "video",
-    "operation": "generate",
-    "prompt": "={{ $json.prompt }}",
-    "aspectRatio": "={{ $json.aspectRatio }}",
-    "durationSec": "={{ $json.seconds }}",
-    "maxCostUsd": "={{ $json.maxCostUsd }}",
-    "additionalFields": {"name": "={{ $json.title }}"},
-})
+
+
+def condition(cid, left, op_type, operation, right=""):
+    return {
+        "conditions": {
+            "options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose", "version": 2},
+            "conditions": [{
+                "id": str(uuid.uuid5(NS, f"sheet/{cid}")),
+                "leftValue": left,
+                "rightValue": right,
+                "operator": {"type": op_type, "operation": operation, "singleValue": True},
+            }],
+            "combinator": "and",
+        },
+        "options": {},
+    }
+
+
+has = f.add("Has a prompt?", "n8n-nodes-base.filter", 2.2, (400, 100), condition("has-prompt", "={{ $json.prompt }}", "string", "notEmpty"))
 schema = [
     {"id": c, "displayName": c, "required": False, "defaultMatch": False, "display": True, "type": "string", "canBeUsedToMatch": True, **({"readOnly": True} if c == "row_number" else {})}
     for c in ("row_number", "video_url", "status")
 ]
-back = f.add("Write the link back", "n8n-nodes-base.googleSheets", 4.7, (820, 100), {
-    "operation": "update",
-    "documentId": rl(),
-    "sheetName": rl(),
-    "columns": {
-        "mappingMode": "defineBelow",
-        "value": {
-            "row_number": "={{ $('New row in sheet').item.json.row_number }}",
-            "video_url": "={{ $json.url }}",
-            "status": "={{ $json.timedOut ? 'still rendering: ' + $json.runId : 'done' }}",
+
+
+def sheet_update(name, pos, values):
+    return f.add(name, "n8n-nodes-base.googleSheets", 4.7, pos, {
+        "operation": "update",
+        "documentId": rl(),
+        "sheetName": rl(),
+        "columns": {
+            "mappingMode": "defineBelow",
+            "value": {"row_number": "={{ $('New row in sheet').item.json.row_number }}", **values},
+            "matchingColumns": ["row_number"],
+            "schema": schema,
+            "attemptToConvertTypes": False,
+            "convertFieldsToString": False,
         },
-        "matchingColumns": ["row_number"],
-        "schema": schema,
-        "attemptToConvertTypes": False,
-        "convertFieldsToString": False,
-    },
-    "options": {},
+        "options": {},
+    })
+
+
+mark = sheet_update("Mark as rendering", (600, 100), {"status": "rendering"})
+gen = f.add("Generate the video", TREZA, 1, (820, 100), {
+    "resource": "video",
+    "operation": "generate",
+    "prompt": f"={{{{ {S}.prompt }}}}",
+    "aspectRatio": f"={{{{ {S}.aspectRatio }}}}",
+    "durationSec": f"={{{{ {S}.seconds }}}}",
+    "maxCostUsd": f"={{{{ {S}.maxCostUsd }}}}",
+    "additionalFields": {"name": f"={{{{ {S}.title }}}}"},
+    "timeoutMinutes": f"={{{{ {S}.waitMinutes }}}}",
 })
-for a, b in [(trig, st), (st, gen), (gen, back)]:
+still = f.add("Still rendering?", "n8n-nodes-base.if", 2.2, (1020, 100), condition("still", "={{ $json.timedOut === true }}", "boolean", "true"))
+wait = f.add("Wait for the render", TREZA, 1, (1020, 320), {
+    "resource": "run",
+    "operation": "wait",
+    "pipelineId": {"__rl": True, "mode": "id", "value": "={{ $json.pipelineId }}"},
+    "runId": "={{ $json.runId }}",
+    "timeoutMinutes": 30,
+})
+back = sheet_update("Write the link back", (1280, 100), {
+    "video_url": "={{ $json.url }}",
+    "status": "={{ $json.url ? 'done' : ($json.timedOut ? 'still rendering: ' + $json.runId : 'failed: ' + ($json.statusNote || $json.status)) }}",
+})
+for a, b in [(trig, st), (st, has), (has, mark), (mark, gen), (gen, still), (wait, back)]:
     f.link(a, b)
+f.link(still, wait, out=0)
+f.link(still, back, out=1)
 f.write()
 
 # ---------------------------------------------------------------------------

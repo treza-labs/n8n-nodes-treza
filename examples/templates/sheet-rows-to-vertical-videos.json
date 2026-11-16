@@ -12,8 +12,8 @@
       ],
       "parameters": {
         "width": 460,
-        "height": 760,
-        "content": "## A vertical video for every new row\nPlan short videos in a spreadsheet. Each new row becomes a 9:16 AI video clip, and the clip's link and status are written back to the same row, so the sheet doubles as your content calendar.\n\n### How it works\n1. **New row in sheet** checks the sheet every minute for added rows.\n2. **Settings** sets the shape, the length and the spend cap for every clip.\n3. **Generate the video** gets a quote from Treza, stops if it is over **Max Cost**, and waits for the render.\n4. **Write the link back** fills in `video_url` and `status` on the row that started it.\n\n### Setup\n1. Make a sheet with the columns `prompt`, `title`, `video_url` and `status`.\n2. Pick that sheet in both Google Sheets nodes and connect your Google account.\n3. Add your Treza API credential to **Generate the video**.\n4. Activate the workflow and add a row with a prompt.\n\n### Customization\nChange the shape to 16:9 or 1:1 in **Settings**, or the length up to the model's limit. To post the clip somewhere, add a YouTube, TikTok or Slack node after **Generate the video**.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
+        "height": 900,
+        "content": "## A vertical video for every new row\nPlan short videos in a spreadsheet. Each new row with a prompt becomes a 9:16 AI video clip. The row is marked while it renders, and the clip's link and status are written back to it, so the sheet works as your content calendar and shows what is done.\n\n### How it works\n1. **New row in sheet** checks the sheet every minute for added rows.\n2. **Settings** sets the shape, the length, the spend cap and how long to wait for a render.\n3. **Has a prompt?** skips rows without one, so notes and blank lines start nothing.\n4. **Mark as rendering** sets the row's `status`, so you can see it is being made.\n5. **Generate the video** gets a quote, stops if it is over **Max Cost**, and waits for the clip.\n6. **Still rendering?** sends a long render to **Wait for the render**, which keeps checking for up to 30 more minutes.\n7. **Write the link back** fills in `video_url` and `status`.\n\n### Setup\n1. Make a sheet with the columns `prompt`, `title`, `video_url` and `status`.\n2. Pick that sheet in the three Google Sheets nodes and connect your Google account.\n3. Add your Treza API credential to both Treza nodes.\n4. Activate the workflow and add a row with a prompt.\n\n### Customization\nChange the shape or length in **Settings**. To post each clip, add a YouTube, TikTok or Slack node after **Write the link back**.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential."
       }
     },
     {
@@ -26,9 +26,9 @@
         -140
       ],
       "parameters": {
-        "width": 460,
-        "height": 420,
-        "content": "## 1. Plan in a sheet\nEvery new row with a `prompt` starts one video. **Settings** holds the shape, length and spend cap.",
+        "width": 780,
+        "height": 460,
+        "content": "## 1. Pick up new rows\nRows with a `prompt` go on and are marked as rendering. **Settings** holds the shape, length and spend cap.",
         "color": 7
       }
     },
@@ -38,13 +38,13 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        440,
+        760,
         -140
       ],
       "parameters": {
-        "width": 300,
-        "height": 420,
-        "content": "## 2. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost.",
+        "width": 420,
+        "height": 460,
+        "content": "## 2. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. A long render is waited on.",
         "color": 7
       }
     },
@@ -54,12 +54,12 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        760,
+        1200,
         -140
       ],
       "parameters": {
         "width": 300,
-        "height": 420,
+        "height": 460,
         "content": "## 3. Write back\nThe video link and a status land on the same row.",
         "color": 7
       }
@@ -101,7 +101,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        220,
+        200,
         100
       ],
       "parameters": {
@@ -124,6 +124,12 @@
               "name": "maxCostUsd",
               "type": "number",
               "value": 3
+            },
+            {
+              "id": "58bab7eb-68e1-561f-858e-d2d3d0e7a09c",
+              "name": "waitMinutes",
+              "type": "number",
+              "value": 10
             }
           ]
         },
@@ -132,24 +138,180 @@
       }
     },
     {
+      "id": "07c2ccc2-2253-5e09-835d-caddf8ee8d4b",
+      "name": "Has a prompt?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8d6be069-178d-506a-a5cb-e8033a5eaa38",
+              "leftValue": "={{ $json.prompt }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fda28703-fc73-5194-8efa-e304096fcef9",
+      "name": "Mark as rendering",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        600,
+        100
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('New row in sheet').item.json.row_number }}",
+            "status": "rendering"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
       "id": "aec5b463-8ad9-504c-8083-8aa215503cbc",
       "name": "Generate the video",
       "type": "@treza/n8n-nodes-treza.treza",
       "typeVersion": 1,
       "position": [
-        500,
+        820,
         100
       ],
       "parameters": {
         "resource": "video",
         "operation": "generate",
-        "prompt": "={{ $json.prompt }}",
-        "aspectRatio": "={{ $json.aspectRatio }}",
-        "durationSec": "={{ $json.seconds }}",
-        "maxCostUsd": "={{ $json.maxCostUsd }}",
+        "prompt": "={{ $('Settings').item.json.prompt }}",
+        "aspectRatio": "={{ $('Settings').item.json.aspectRatio }}",
+        "durationSec": "={{ $('Settings').item.json.seconds }}",
+        "maxCostUsd": "={{ $('Settings').item.json.maxCostUsd }}",
         "additionalFields": {
-          "name": "={{ $json.title }}"
-        }
+          "name": "={{ $('Settings').item.json.title }}"
+        },
+        "timeoutMinutes": "={{ $('Settings').item.json.waitMinutes }}"
+      }
+    },
+    {
+      "id": "d75c1f40-6a19-5456-9478-7e92cf4d3620",
+      "name": "Still rendering?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "14988549-f674-587c-9a82-849b05710b59",
+              "leftValue": "={{ $json.timedOut === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f122a753-6983-5a4b-b34b-2046bec7ff8f",
+      "name": "Wait for the render",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        320
+      ],
+      "parameters": {
+        "resource": "run",
+        "operation": "wait",
+        "pipelineId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.pipelineId }}"
+        },
+        "runId": "={{ $json.runId }}",
+        "timeoutMinutes": 30
       }
     },
     {
@@ -158,7 +320,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        820,
+        1280,
         100
       ],
       "parameters": {
@@ -178,7 +340,7 @@
           "value": {
             "row_number": "={{ $('New row in sheet').item.json.row_number }}",
             "video_url": "={{ $json.url }}",
-            "status": "={{ $json.timedOut ? 'still rendering: ' + $json.runId : 'done' }}"
+            "status": "={{ $json.url ? 'done' : ($json.timedOut ? 'still rendering: ' + $json.runId : 'failed: ' + ($json.statusNote || $json.status)) }}"
           },
           "matchingColumns": [
             "row_number"
@@ -236,6 +398,28 @@
       "main": [
         [
           {
+            "node": "Has a prompt?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has a prompt?": {
+      "main": [
+        [
+          {
+            "node": "Mark as rendering",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as rendering": {
+      "main": [
+        [
+          {
             "node": "Generate the video",
             "type": "main",
             "index": 0
@@ -245,6 +429,35 @@
     },
     "Generate the video": {
       "main": [
+        [
+          {
+            "node": "Still rendering?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for the render": {
+      "main": [
+        [
+          {
+            "node": "Write the link back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still rendering?": {
+      "main": [
+        [
+          {
+            "node": "Wait for the render",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Write the link back",
