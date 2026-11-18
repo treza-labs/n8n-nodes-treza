@@ -48,7 +48,7 @@ The node can also be used as a tool by n8n's AI Agent.
 
 No one approves a price inside an automation, so the node enforces a limit itself:
 
-- **Max Cost (USD)** is required on Video → Generate, Image → Generate and Pipeline → Run. The node gets Treza's quote first. If the price is over your limit, or your balance doesn't cover it, the item stops and **nothing is charged**. The render then starts at the quoted price, once.
+- **Max Cost (USD)** is an optional limit on Video → Generate, Image → Generate and Pipeline → Run (0 means no limit). The node gets Treza's quote first. If the price is over your limit, or your balance doesn't cover it, the item stops and **nothing is charged**. The render then starts at the quoted price, once.
 - **Retries don't double-charge.**
   - A wait that runs past its timeout does not fail the item. The item comes out with `timedOut: true` and the render carries on, so n8n's *Retry On Fail* never starts a second paid render.
   - Assemble and Edit send an ID for each item of each execution, so a retry returns the render already started.

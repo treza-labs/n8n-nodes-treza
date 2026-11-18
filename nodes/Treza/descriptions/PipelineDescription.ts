@@ -1,5 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { maxCostField, pipelineLocator, waitFields } from './shared';
+import { maxCostFields, pipelineLocator, waitFields } from './shared';
 
 const run = { resource: ['pipeline'], operation: ['run'] };
 const getMany = { resource: ['pipeline'], operation: ['getMany'] };
@@ -80,7 +80,7 @@ export const pipelineFields: INodeProperties[] = [
 			},
 		],
 	},
-	maxCostField(run, 5),
+	...maxCostFields(run, 5),
 	...waitFields(run),
 
 	// ----------------------------------------------------------------------

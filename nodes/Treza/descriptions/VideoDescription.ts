@@ -1,5 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { maxCostField, waitFields } from './shared';
+import { maxCostFields, waitFields } from './shared';
 
 const generate = { resource: ['video'], operation: ['generate'] };
 const assemble = { resource: ['video'], operation: ['assemble'] };
@@ -67,7 +67,7 @@ export const videoFields: INodeProperties[] = [
 			'Length of the clip. A model that renders fixed lengths uses the next one up, at most 2 seconds longer.',
 		displayOptions: { show: generate },
 	},
-	maxCostField(generate, 2),
+	...maxCostFields(generate, 2),
 	{
 		displayName: 'Additional Fields',
 		name: 'additionalFields',

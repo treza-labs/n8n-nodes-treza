@@ -1,5 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { maxCostField, waitFields } from './shared';
+import { maxCostFields, waitFields } from './shared';
 
 const generate = { resource: ['image'], operation: ['generate'] };
 
@@ -34,7 +34,7 @@ export const imageFields: INodeProperties[] = [
 		description: 'What the picture shows, or with reference images, what to change about them',
 		displayOptions: { show: generate },
 	},
-	maxCostField(generate, 0.5),
+	...maxCostFields(generate, 0.5),
 	{
 		displayName: 'Additional Fields',
 		name: 'additionalFields',

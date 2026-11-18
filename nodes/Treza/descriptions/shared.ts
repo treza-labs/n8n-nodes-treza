@@ -30,22 +30,44 @@ export function pipelineLocator(show: Show, description = 'The Treza pipeline'):
 }
 
 /**
- * The spend cap every operation that renders asks for. Nobody approves a price
- * inside an automation, so this is the approval: the node gets Treza's quote
- * first and stops, with nothing charged, when it is higher.
+ * An optional spend cap on an operation that renders. With one set, the node
+ * gets Treza's quote first and stops, with nothing charged, when it is higher.
+ *
+ * Node version 1 required it, with a default per operation ($2 for video).
+ * That default stopped clips people meant to make (an 8 second Seedance 2.5
+ * clip is $2.63), so from version 1.1 it is optional and 0 means no limit.
+ * Version 1 nodes in saved workflows keep the cap and default they had.
  */
-export function maxCostField(show: Show, defaultUsd: number): INodeProperties {
-	return {
+export function maxCostFields(show: Show, v1DefaultUsd: number): INodeProperties[] {
+	const base = {
 		displayName: 'Max Cost (USD)',
 		name: 'maxCostUsd',
-		type: 'number',
-		required: true,
-		default: defaultUsd,
+		type: 'number' as const,
 		typeOptions: { minValue: 0, numberPrecision: 2 },
-		description:
-			'The most this item may spend. The node gets the price from Treza first and stops without charging anything if the price is higher.',
-		displayOptions: { show },
 	};
+	return [
+		{
+			...base,
+			required: true,
+			default: v1DefaultUsd,
+			description:
+				'The most this item may spend. The node gets the price from Treza first and stops without charging anything if the price is higher.',
+			displayOptions: { show: { ...show, '@version': [1] } },
+		},
+		{
+			...base,
+			default: 0,
+			description:
+				'Optional. The most this item may spend: the node gets the price from Treza first and stops without charging anything if the price is higher. Leave at 0 for no limit.',
+			displayOptions: { show: { ...show, '@version': [{ _cnd: { gte: 1.1 } }] } },
+		},
+	];
+}
+
+/** The cap to hold a render to: Infinity when none is set (0 or empty). */
+export function costCap(value: unknown): number {
+	const cap = Number(value);
+	return Number.isFinite(cap) && cap > 0 ? cap : Infinity;
 }
 
 /** n8n's Simplify switch, for items with more than 10 fields. */

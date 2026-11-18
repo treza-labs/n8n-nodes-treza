@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 (2026-11-18)
+
+- **Max Cost (USD)** is optional, with no default. Leave it at 0 and the item runs at the price Treza quotes, as long as your balance covers it. Set it and the node still stops, with nothing charged, when the price is higher. The old $2 default on Video → Generate stopped clips people meant to make: 8 seconds of Seedance 2.5 costs $2.63.
+- Treza nodes already in your workflows are unchanged. They are version 1 of the node and keep the Max Cost they have, including the old default. Add the node again to get one without a cap.
+
 ## 0.1.3 (2026-11-09)
 
 Changes asked for in n8n's review for verified community nodes.

@@ -14,6 +14,7 @@ import { mediaFields, mediaOperations } from './descriptions/MediaDescription';
 import { pipelineFields, pipelineOperations } from './descriptions/PipelineDescription';
 import { runFields, runOperations } from './descriptions/RunDescription';
 import { videoFields, videoOperations } from './descriptions/VideoDescription';
+import { costCap } from './descriptions/shared';
 import {
 	CHAT_ONLY,
 	compact,
@@ -57,7 +58,8 @@ export class Treza implements INodeType {
 		name: 'treza',
 		icon: { light: 'file:../../icons/treza.svg', dark: 'file:../../icons/treza.dark.svg' },
 		group: ['transform'],
-		version: 1,
+		version: [1, 1.1],
+		defaultVersion: 1.1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description:
 			'Generate videos and images, edit footage, and run Treza pipelines',
@@ -142,7 +144,7 @@ function pipelineIdParam(this: IExecuteFunctions, i: number): string {
 }
 
 /**
- * Start a render at a price no higher than Max Cost. `quote` prepares it
+ * Start a render at a price no higher than Max Cost, when one is set. `quote` prepares it
  * (make_video, make_image or estimate_run_cost, which is given the run's
  * inputs) and answers with the price and a quoteId; the run starts only at
  * that quoted price, once. Nothing is charged when the price is over the cap
@@ -226,12 +228,12 @@ async function runOperation(
 ): Promise<Output[]> {
 	// ------------------------------------------------------------------ video
 	if (resource === 'video' && operation === 'generate') {
-		const maxCostUsd = this.getNodeParameter('maxCostUsd', i) as number;
+		const maxCostUsd = costCap(this.getNodeParameter('maxCostUsd', i, 0));
 		const args = compact({
 			prompt: this.getNodeParameter('prompt', i) as string,
 			aspectRatio: this.getNodeParameter('aspectRatio', i) as string,
 			durationSec: this.getNodeParameter('durationSec', i) as number,
-			maxPriceUsd: maxCostUsd,
+			maxPriceUsd: Number.isFinite(maxCostUsd) ? maxCostUsd : undefined,
 			...(this.getNodeParameter('additionalFields', i) as IDataObject),
 		});
 		const { quoted, started, pipelineId } = await startQuoted.call(this, i, maxCostUsd, () =>
@@ -263,12 +265,12 @@ async function runOperation(
 
 	// ------------------------------------------------------------------ image
 	if (resource === 'image' && operation === 'generate') {
-		const maxCostUsd = this.getNodeParameter('maxCostUsd', i) as number;
+		const maxCostUsd = costCap(this.getNodeParameter('maxCostUsd', i, 0));
 		const { referenceImageUrls, ...additional } = this.getNodeParameter('additionalFields', i) as IDataObject;
 		const references = toList(referenceImageUrls);
 		const args = compact({
 			prompt: this.getNodeParameter('prompt', i) as string,
-			maxPriceUsd: maxCostUsd,
+			maxPriceUsd: Number.isFinite(maxCostUsd) ? maxCostUsd : undefined,
 			...additional,
 			...(references.length ? { referenceImageUrls: references } : {}),
 		});
@@ -346,7 +348,7 @@ async function runOperation(
 	// --------------------------------------------------------------- pipeline
 	if (resource === 'pipeline' && operation === 'run') {
 		const pipelineId = pipelineIdParam.call(this, i);
-		const maxCostUsd = this.getNodeParameter('maxCostUsd', i) as number;
+		const maxCostUsd = costCap(this.getNodeParameter('maxCostUsd', i, 0));
 		const inputs = await pipelineInputs.call(this, pipelineId, i, entryTypes);
 		const { quoted, started } = await startQuoted.call(
 			this,

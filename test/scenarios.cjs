@@ -87,6 +87,15 @@ const rl = (value) => ({ __rl: true, mode: 'id', value });
 		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '9:16', durationSec: 4, maxCostUsd: 2, additionalFields: {}, ...wait, download: true },
 		{}, ({ out, calls }) => out[0].json.url && out[0].binary.data.mimeType === 'video/mp4' && out[0].json.estimatedChargeUsd === 1 && calls.find((c) => c.tool === 'make_video').args.maxPriceUsd === 2 && calls.every((c) => !c.tool || c.ua.startsWith('n8n-nodes-treza/')));
 
+	// 0.1.4: no cap by default. An 8 second clip the old $1 cap refused runs at its quote.
+	await scenario('Video Generate: no Max Cost (0) → runs at the quote, no limit sent',
+		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '16:9', durationSec: 8, maxCostUsd: 0, additionalFields: {}, ...wait },
+		{}, ({ out, calls }) => out[0].json.url && out[0].json.estimatedChargeUsd === 2 && !('maxPriceUsd' in calls.find((c) => c.tool === 'make_video').args) && calls.some((c) => c.tool === 'run_pipeline'));
+
+	await scenario('Pipeline Run: no Max Cost (0) → runs at the quote',
+		{ resource: 'pipeline', operation: 'run', pipelineId: rl('pipeline_demo'), maxCostUsd: 0, inputs: { input: [{ entryNodeId: 'text_1', value: 'long' }] }, ...wait },
+		{}, ({ out, calls }) => out[0].json.status === 'success' && calls.some((c) => c.tool === 'run_pipeline'));
+
 	await scenario('Video Generate: over Max Cost → refused, nothing run',
 		{ resource: 'video', operation: 'generate', prompt: 'otter', aspectRatio: '16:9', durationSec: 8, maxCostUsd: 1, additionalFields: {}, ...wait },
 		{}, ({ err, calls }) => /costs \$2\.00, over the Max Cost of \$1\.00\. Nothing was charged/.test(err.message) && !calls.some((c) => c.tool === 'run_pipeline'));
