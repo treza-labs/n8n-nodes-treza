@@ -181,47 +181,57 @@ for a, b in [(start, st), (st, split), (split, gen), (gen, agg), (agg, cut)]:
 f.write()
 
 # ---------------------------------------------------------------------------
-# 2. Google Sheets row -> vertical video -> link written back
+# 2. Google Sheets topic -> AI-written shot and caption -> vertical video ->
+#    YouTube upload -> row updated -> Slack
+#
+# The first version (new row -> one Treza step -> link written back) was
+# declined by n8n's reviewers on 2026-11-18 as "too basic". This one is the
+# whole content pipeline around the same step.
 # ---------------------------------------------------------------------------
-f = Flow("sheet-rows-to-vertical-videos", "Turn new Google Sheets rows into vertical AI videos with Treza")
+f = Flow("sheet-topics-to-youtube-shorts", "Create and publish YouTube Shorts from Google Sheets topics with OpenAI and Treza")
 f.overview(
-    "## A vertical video for every new row\n"
-    "Plan short videos in a spreadsheet. Each new row with a prompt becomes a 9:16 AI video clip. The row is marked "
-    "while it renders, and the clip's link and status are written back to it, so the sheet works as your content "
-    "calendar and shows what is done.\n\n"
+    "## From a topic in a sheet to a Short on YouTube\n"
+    "Add a topic to a Google Sheet. An AI model writes the shot, a title and a caption, Treza renders a 9:16 "
+    "clip, and it is uploaded to YouTube. The row is updated at every stage and your team gets a Slack message.\n\n"
     "### How it works\n"
-    "1. **New row in sheet** checks the sheet every minute for added rows.\n"
-    "2. **Settings** sets the shape, the length, the spend cap and how long to wait for a render.\n"
-    "3. **Has a prompt?** skips rows without one, so notes and blank lines start nothing.\n"
-    "4. **Mark as rendering** sets the row's `status`, so you can see it is being made.\n"
-    "5. **Generate the video** gets a quote, stops if it is over **Max Cost**, and waits for the clip.\n"
-    "6. **Still rendering?** sends a long render to **Wait for the render**, which keeps checking for up to 30 more minutes.\n"
-    "7. **Write the link back** fills in `video_url` and `status`.\n\n"
+    "1. **New topic in sheet** picks up added rows, and **Has a topic?** skips blank ones.\n"
+    "2. **Mark as rendering** sets its `status`.\n"
+    "3. **Write the shot and caption** turns the topic into a shot, a title and a caption, in your voice.\n"
+    "4. **Generate the video** gets a quote from Treza, stops if it is over **Max Cost**, and renders. "
+    "**Wait for the render** covers long renders.\n"
+    "5. **Did it render?** sends a finished clip to **Upload to YouTube**, and a failed one to **Mark as failed**.\n"
+    "6. **Write the links back** fills in the row, then **Tell the team in Slack** posts the link.\n\n"
     "### Setup\n"
-    "1. Make a sheet with the columns `prompt`, `title`, `video_url` and `status`.\n"
-    "2. Pick that sheet in the three Google Sheets nodes and connect your Google account.\n"
-    "3. Add your Treza API credential to both Treza nodes.\n"
-    "4. Activate the workflow and add a row with a prompt.\n\n"
+    "1. Make a sheet with the columns `topic`, `status`, `title`, `caption`, `video_url` and `youtube_url`.\n"
+    "2. Pick that sheet in the three Google Sheets nodes.\n"
+    "3. Add your OpenAI, Treza, Google Sheets, YouTube and Slack credentials, and pick the Slack channel.\n"
+    "4. Activate the workflow and add a row with a topic.\n\n"
     "### Customization\n"
-    "Change the shape or length in **Settings**. To post each clip, add a YouTube, TikTok or Slack node after **Write the link back**.\n\n"
-    + REQUIREMENTS,
-    h=900,
+    "Videos upload as **private** for review. Set `privacy` in **Settings** to `public` to post straight away. "
+    "Edit `voice` to match your channel.\n\n"
+    + REQUIREMENTS
+    + "\n- OpenAI, Google Sheets, YouTube and Slack credentials.",
+    h=1100,
 )
-f.section("Note: plan", (-40, -140), 780, 460, "## 1. Pick up new rows\nRows with a `prompt` go on and are marked as rendering. **Settings** holds the shape, length and spend cap.")
-f.section("Note: render", (760, -140), 420, 460, "## 2. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. A long render is waited on.")
-f.section("Note: write back", (1200, -140), 300, 460, "## 3. Write back\nThe video link and a status land on the same row.")
-trig = f.add("New row in sheet", "n8n-nodes-base.googleSheetsTrigger", 1, (0, 100), {
+f.section("Note: plan", (-40, -140), 880, 660, "## 1. Pick up new topics\nRows with a `topic` go on and are marked as rendering. **Settings** holds the shape, length, spend cap, voice and privacy.")
+f.section("Note: write", (860, -140), 400, 660, "## 2. Write it\nThe chat model turns the topic into a shot description for the video model, plus a title and a caption.")
+f.section("Note: render", (1280, -140), 620, 660, "## 3. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. Long renders are waited on.")
+f.section("Note: publish", (1920, -140), 940, 660, "## 4. Publish and report\nA finished clip is uploaded to YouTube, the row gets its links, and Slack is told. A failed render is marked on the row.")
+
+trig = f.add("New topic in sheet", "n8n-nodes-base.googleSheetsTrigger", 1, (0, 100), {
     "pollTimes": {"item": [{"mode": "everyMinute"}]},
     "documentId": rl(),
     "sheetName": rl(),
     "event": "rowAdded",
     "options": {},
 })
-st = settings(f, (200, 100), [
+st = settings(f, (220, 100), [
     ("aspectRatio", "string", "9:16"),
     ("seconds", "number", 8),
     ("maxCostUsd", "number", 3),
     ("waitMinutes", "number", 10),
+    ("voice", "string", "Curious and friendly, for a general audience. Plain words, no hashtags in the title."),
+    ("privacy", "string", "private"),
 ], keep_input=True)
 
 
@@ -241,10 +251,11 @@ def condition(cid, left, op_type, operation, right=""):
     }
 
 
-has = f.add("Has a prompt?", "n8n-nodes-base.filter", 2.2, (400, 100), condition("has-prompt", "={{ $json.prompt }}", "string", "notEmpty"))
+has = f.add("Has a topic?", "n8n-nodes-base.filter", 2.2, (440, 100), condition("has-topic", "={{ $json.topic }}", "string", "notEmpty"))
+SHEET_COLUMNS = ("row_number", "status", "title", "caption", "video_url", "youtube_url")
 schema = [
     {"id": c, "displayName": c, "required": False, "defaultMatch": False, "display": True, "type": "string", "canBeUsedToMatch": True, **({"readOnly": True} if c == "row_number" else {})}
-    for c in ("row_number", "video_url", "status")
+    for c in SHEET_COLUMNS
 ]
 
 
@@ -255,7 +266,7 @@ def sheet_update(name, pos, values):
         "sheetName": rl(),
         "columns": {
             "mappingMode": "defineBelow",
-            "value": {"row_number": "={{ $('New row in sheet').item.json.row_number }}", **values},
+            "value": {"row_number": "={{ $('New topic in sheet').item.json.row_number }}", **values},
             "matchingColumns": ["row_number"],
             "schema": schema,
             "attemptToConvertTypes": False,
@@ -265,33 +276,98 @@ def sheet_update(name, pos, values):
     })
 
 
-mark = sheet_update("Mark as rendering", (600, 100), {"status": "rendering"})
-gen = f.add("Generate the video", TREZA, 1, (820, 100), {
+mark = sheet_update("Mark as rendering", (660, 100), {"status": "rendering"})
+
+WRITTEN = "$('Write the shot and caption').item.json.output"
+write = f.add("Write the shot and caption", "@n8n/n8n-nodes-langchain.chainLlm", 1.9, (920, 100), {
+    "promptType": "define",
+    "text": f"=Topic: {{{{ {S}.topic }}}}\nVoice: {{{{ {S}.voice }}}}\nClip length: {{{{ {S}.seconds }}}} seconds, shape {{{{ {S}.aspectRatio }}}}",
+    "hasOutputParser": True,
+    "messages": {"messageValues": [{"message": (
+        "You plan one short vertical video for social media.\n"
+        "From the topic, write:\n"
+        "- shot: one continuous shot for an AI video model, 40 to 70 words. Say the subject, the action, the "
+        "setting, the light and the camera move. No on-screen text, no logos, no real people or brands.\n"
+        "- title: a YouTube title under 70 characters.\n"
+        "- caption: a description of one or two sentences in the given voice."
+    )}]},
+    "batching": {},
+})
+model = f.add("Chat model", "@n8n/n8n-nodes-langchain.lmChatOpenAi", 1.3, (900, 340), {"model": rl("gpt-5-mini"), "options": {}})
+parser = f.add("Shot, title and caption", "@n8n/n8n-nodes-langchain.outputParserStructured", 1.3, (1080, 340), {
+    "schemaType": "fromJson",
+    "jsonSchemaExample": json.dumps({
+        "shot": "Slow push in on a tide pool at sunrise as a small orange starfish curls one arm, clear shallow water rippling, warm low light, macro lens, shallow depth of field",
+        "title": "How a starfish moves without a brain",
+        "caption": "Starfish have no brain, yet they walk, hunt and find their way home. Here is how.",
+    }, indent=2),
+})
+
+gen = f.add("Generate the video", TREZA, 1, (1340, 100), {
     "resource": "video",
     "operation": "generate",
-    "prompt": f"={{{{ {S}.prompt }}}}",
+    "prompt": "={{ $json.output.shot }}",
     "aspectRatio": f"={{{{ {S}.aspectRatio }}}}",
     "durationSec": f"={{{{ {S}.seconds }}}}",
     "maxCostUsd": f"={{{{ {S}.maxCostUsd }}}}",
-    "additionalFields": {"name": f"={{{{ {S}.title }}}}"},
+    "additionalFields": {"name": "={{ $json.output.title }}"},
     "timeoutMinutes": f"={{{{ {S}.waitMinutes }}}}",
 })
-still = f.add("Still rendering?", "n8n-nodes-base.if", 2.2, (1020, 100), condition("still", "={{ $json.timedOut === true }}", "boolean", "true"))
-wait = f.add("Wait for the render", TREZA, 1, (1020, 320), {
+still = f.add("Still rendering?", "n8n-nodes-base.if", 2.2, (1560, 100), condition("still", "={{ $json.timedOut === true }}", "boolean", "true"))
+wait = f.add("Wait for the render", TREZA, 1, (1560, 340), {
     "resource": "run",
     "operation": "wait",
     "pipelineId": {"__rl": True, "mode": "id", "value": "={{ $json.pipelineId }}"},
     "runId": "={{ $json.runId }}",
     "timeoutMinutes": 30,
 })
-back = sheet_update("Write the link back", (1280, 100), {
-    "video_url": "={{ $json.url }}",
-    "status": "={{ $json.url ? 'done' : ($json.timedOut ? 'still rendering: ' + $json.runId : 'failed: ' + ($json.statusNote || $json.status)) }}",
+rendered = f.add("Did it render?", "n8n-nodes-base.if", 2.2, (1760, 100), condition("rendered", "={{ !!$json.url }}", "boolean", "true"))
+
+download = f.add("Download the clip", "n8n-nodes-base.httpRequest", 4.2, (1980, 100), {
+    "url": "={{ $json.url }}",
+    "options": {"response": {"response": {"responseFormat": "file", "outputPropertyName": "video"}}},
 })
-for a, b in [(trig, st), (st, has), (has, mark), (mark, gen), (gen, still), (wait, back)]:
+upload = f.add("Upload to YouTube", "n8n-nodes-base.youTube", 1, (2200, 100), {
+    "resource": "video",
+    "operation": "upload",
+    "title": f"={{{{ {WRITTEN}.title }}}}",
+    "regionCode": "US",
+    "categoryId": "22",
+    "binaryProperty": "video",
+    "options": {
+        "description": f"={{{{ {WRITTEN}.caption }}}}",
+        "privacyStatus": f"={{{{ {S}.privacy }}}}",
+        "selfDeclaredMadeForKids": False,
+    },
+})
+back = sheet_update("Write the links back", (2420, 100), {
+    "status": f"={{{{ {S}.privacy === 'public' ? 'published' : 'uploaded, ' + {S}.privacy }}}}",
+    "title": f"={{{{ {WRITTEN}.title }}}}",
+    "caption": f"={{{{ {WRITTEN}.caption }}}}",
+    "video_url": "={{ $('Did it render?').item.json.url }}",
+    "youtube_url": "=https://youtu.be/{{ $json.id }}",
+})
+slack = f.add("Tell the team in Slack", "n8n-nodes-base.slack", 2.3, (2640, 100), {
+    "select": "channel",
+    "channelId": rl(),
+    "text": f"=New Short uploaded ({{{{ {S}.privacy }}}}): {{{{ {WRITTEN}.title }}}}\nhttps://youtu.be/{{{{ $('Upload to YouTube').item.json.id }}}}",
+    "otherOptions": {},
+}, webhookId=str(uuid.uuid5(NS, "sheet-topics/slack")))
+failed = sheet_update("Mark as failed", (1980, 340), {
+    "status": "={{ $json.timedOut ? 'still rendering: ' + $json.runId : 'failed: ' + ($json.statusNote || $json.status) }}",
+    "title": f"={{{{ {WRITTEN}.title }}}}",
+    "caption": f"={{{{ {WRITTEN}.caption }}}}",
+})
+
+for a, b in [(trig, st), (st, has), (has, mark), (mark, write), (write, gen), (gen, still), (wait, rendered),
+             (download, upload), (upload, back), (back, slack)]:
     f.link(a, b)
+f.link(model, write, "ai_languageModel")
+f.link(parser, write, "ai_outputParser")
 f.link(still, wait, out=0)
-f.link(still, back, out=1)
+f.link(still, rendered, out=1)
+f.link(rendered, download, out=0)
+f.link(rendered, failed, out=1)
 f.write()
 
 # ---------------------------------------------------------------------------

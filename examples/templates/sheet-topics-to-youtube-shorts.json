@@ -1,0 +1,896 @@
+{
+  "name": "Create and publish YouTube Shorts from Google Sheets topics with OpenAI and Treza",
+  "nodes": [
+    {
+      "id": "3920bfbd-8717-543d-92e8-ec70fbb48345",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 1100,
+        "content": "## From a topic in a sheet to a Short on YouTube\nAdd a topic to a Google Sheet. An AI model writes the shot, a title and a caption, Treza renders a 9:16 clip, and it is uploaded to YouTube. The row is updated at every stage and your team gets a Slack message.\n\n### How it works\n1. **New topic in sheet** picks up added rows, and **Has a topic?** skips blank ones.\n2. **Mark as rendering** sets its `status`.\n3. **Write the shot and caption** turns the topic into a shot, a title and a caption, in your voice.\n4. **Generate the video** gets a quote from Treza, stops if it is over **Max Cost**, and renders. **Wait for the render** covers long renders.\n5. **Did it render?** sends a finished clip to **Upload to YouTube**, and a failed one to **Mark as failed**.\n6. **Write the links back** fills in the row, then **Tell the team in Slack** posts the link.\n\n### Setup\n1. Make a sheet with the columns `topic`, `status`, `title`, `caption`, `video_url` and `youtube_url`.\n2. Pick that sheet in the three Google Sheets nodes.\n3. Add your OpenAI, Treza, Google Sheets, YouTube and Slack credentials, and pick the Slack channel.\n4. Activate the workflow and add a row with a topic.\n\n### Customization\nVideos upload as **private** for review. Set `privacy` in **Settings** to `public` to post straight away. Edit `voice` to match your channel.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential.\n- OpenAI, Google Sheets, YouTube and Slack credentials."
+      }
+    },
+    {
+      "id": "7e1434f8-2a46-51c7-b1d6-6a46ce6b4fa7",
+      "name": "Note: plan",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 880,
+        "height": 660,
+        "content": "## 1. Pick up new topics\nRows with a `topic` go on and are marked as rendering. **Settings** holds the shape, length, spend cap, voice and privacy.",
+        "color": 7
+      }
+    },
+    {
+      "id": "1619470f-64b9-534b-a5ec-d6bc8f7784bf",
+      "name": "Note: write",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        860,
+        -140
+      ],
+      "parameters": {
+        "width": 400,
+        "height": 660,
+        "content": "## 2. Write it\nThe chat model turns the topic into a shot description for the video model, plus a title and a caption.",
+        "color": 7
+      }
+    },
+    {
+      "id": "ee17081e-25a6-5bc9-9aff-e98381d074dd",
+      "name": "Note: render",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        -140
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 660,
+        "content": "## 3. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. Long renders are waited on.",
+        "color": 7
+      }
+    },
+    {
+      "id": "d0c6daa2-9581-5095-81ec-2cf8e1818ca3",
+      "name": "Note: publish",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        -140
+      ],
+      "parameters": {
+        "width": 940,
+        "height": 660,
+        "content": "## 4. Publish and report\nA finished clip is uploaded to YouTube, the row gets its links, and Slack is told. A failed render is marked on the row.",
+        "color": 7
+      }
+    },
+    {
+      "id": "1a09119c-a82d-5b3f-8fbd-8c0b21c80171",
+      "name": "New topic in sheet",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "event": "rowAdded",
+        "options": {}
+      }
+    },
+    {
+      "id": "ef7841c8-e736-58b8-a750-4f42cc553d0a",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a8c0d21e-5337-5262-8141-7676885dcddc",
+              "name": "aspectRatio",
+              "type": "string",
+              "value": "9:16"
+            },
+            {
+              "id": "a87812b0-898a-528c-93cd-ce072250dbc4",
+              "name": "seconds",
+              "type": "number",
+              "value": 8
+            },
+            {
+              "id": "4640781b-a171-5881-b079-fbf3328c4855",
+              "name": "maxCostUsd",
+              "type": "number",
+              "value": 3
+            },
+            {
+              "id": "8942a726-740e-5868-a025-ad7723d0f98d",
+              "name": "waitMinutes",
+              "type": "number",
+              "value": 10
+            },
+            {
+              "id": "e5b6a5ac-fa50-5bfa-bc3a-37f882c017e5",
+              "name": "voice",
+              "type": "string",
+              "value": "Curious and friendly, for a general audience. Plain words, no hashtags in the title."
+            },
+            {
+              "id": "dfe28b1a-fbcc-5ef8-bde7-d5abbb8fa6b1",
+              "name": "privacy",
+              "type": "string",
+              "value": "private"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      }
+    },
+    {
+      "id": "db11e636-c747-58cd-8a03-754bb925f2b6",
+      "name": "Has a topic?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "089d325b-5ef0-53c2-993c-1bc1403414ca",
+              "leftValue": "={{ $json.topic }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "15e2c3b8-7752-5b3f-97c6-0d79f96a1f33",
+      "name": "Mark as rendering",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('New topic in sheet').item.json.row_number }}",
+            "status": "rendering"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "youtube_url",
+              "displayName": "youtube_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cd2cc184-a06e-51a5-a399-f2dd48e31c29",
+      "name": "Write the shot and caption",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        920,
+        100
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $('Settings').item.json.topic }}\nVoice: {{ $('Settings').item.json.voice }}\nClip length: {{ $('Settings').item.json.seconds }} seconds, shape {{ $('Settings').item.json.aspectRatio }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You plan one short vertical video for social media.\nFrom the topic, write:\n- shot: one continuous shot for an AI video model, 40 to 70 words. Say the subject, the action, the setting, the light and the camera move. No on-screen text, no logos, no real people or brands.\n- title: a YouTube title under 70 characters.\n- caption: a description of one or two sentences in the given voice."
+            }
+          ]
+        },
+        "batching": {}
+      }
+    },
+    {
+      "id": "713a280a-f342-521c-bb48-9fa8159cba99",
+      "name": "Chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        900,
+        340
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7c9c33f5-0883-5ec2-b233-b5213098edbd",
+      "name": "Shot, title and caption",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1080,
+        340
+      ],
+      "parameters": {
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{\n  \"shot\": \"Slow push in on a tide pool at sunrise as a small orange starfish curls one arm, clear shallow water rippling, warm low light, macro lens, shallow depth of field\",\n  \"title\": \"How a starfish moves without a brain\",\n  \"caption\": \"Starfish have no brain, yet they walk, hunt and find their way home. Here is how.\"\n}"
+      }
+    },
+    {
+      "id": "500d01f4-5d11-5f5e-b5d2-3083c10a894a",
+      "name": "Generate the video",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        100
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $json.output.shot }}",
+        "aspectRatio": "={{ $('Settings').item.json.aspectRatio }}",
+        "durationSec": "={{ $('Settings').item.json.seconds }}",
+        "maxCostUsd": "={{ $('Settings').item.json.maxCostUsd }}",
+        "additionalFields": {
+          "name": "={{ $json.output.title }}"
+        },
+        "timeoutMinutes": "={{ $('Settings').item.json.waitMinutes }}"
+      }
+    },
+    {
+      "id": "1b6b5049-b138-56a1-87b4-830b731f2f4f",
+      "name": "Still rendering?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1560,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "14988549-f674-587c-9a82-849b05710b59",
+              "leftValue": "={{ $json.timedOut === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fa03a468-532f-569e-ba9d-e4a04a60c8e1",
+      "name": "Wait for the render",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        340
+      ],
+      "parameters": {
+        "resource": "run",
+        "operation": "wait",
+        "pipelineId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.pipelineId }}"
+        },
+        "runId": "={{ $json.runId }}",
+        "timeoutMinutes": 30
+      }
+    },
+    {
+      "id": "417d5799-8cc8-50dd-a246-72417b900324",
+      "name": "Did it render?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "37f8449b-b605-5356-9d39-ef63c43f4af0",
+              "leftValue": "={{ !!$json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a5182b4b-d1f7-5973-9d9d-506162b7e675",
+      "name": "Download the clip",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        100
+      ],
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "146b785f-c23a-5015-8aea-b951213590e0",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        100
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Write the shot and caption').item.json.output.title }}",
+        "regionCode": "US",
+        "categoryId": "22",
+        "binaryProperty": "video",
+        "options": {
+          "description": "={{ $('Write the shot and caption').item.json.output.caption }}",
+          "privacyStatus": "={{ $('Settings').item.json.privacy }}",
+          "selfDeclaredMadeForKids": false
+        }
+      }
+    },
+    {
+      "id": "cdc0569e-bc66-5226-a497-5632d8e0404d",
+      "name": "Write the links back",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2420,
+        100
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('New topic in sheet').item.json.row_number }}",
+            "status": "={{ $('Settings').item.json.privacy === 'public' ? 'published' : 'uploaded, ' + $('Settings').item.json.privacy }}",
+            "title": "={{ $('Write the shot and caption').item.json.output.title }}",
+            "caption": "={{ $('Write the shot and caption').item.json.output.caption }}",
+            "video_url": "={{ $('Did it render?').item.json.url }}",
+            "youtube_url": "=https://youtu.be/{{ $json.id }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "youtube_url",
+              "displayName": "youtube_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "16a0a38d-24d1-5402-955f-93190af71a64",
+      "name": "Tell the team in Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2640,
+        100
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "=New Short uploaded ({{ $('Settings').item.json.privacy }}): {{ $('Write the shot and caption').item.json.output.title }}\nhttps://youtu.be/{{ $('Upload to YouTube').item.json.id }}",
+        "otherOptions": {}
+      },
+      "webhookId": "20b98232-d417-54ae-bc40-f4adee81bb31"
+    },
+    {
+      "id": "953193ea-665e-5fc7-8e7d-2c619f95b781",
+      "name": "Mark as failed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1980,
+        340
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('New topic in sheet').item.json.row_number }}",
+            "status": "={{ $json.timedOut ? 'still rendering: ' + $json.runId : 'failed: ' + ($json.statusNote || $json.status) }}",
+            "title": "={{ $('Write the shot and caption').item.json.output.title }}",
+            "caption": "={{ $('Write the shot and caption').item.json.output.caption }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "youtube_url",
+              "displayName": "youtube_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "New topic in sheet": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Has a topic?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has a topic?": {
+      "main": [
+        [
+          {
+            "node": "Mark as rendering",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as rendering": {
+      "main": [
+        [
+          {
+            "node": "Write the shot and caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write the shot and caption": {
+      "main": [
+        [
+          {
+            "node": "Generate the video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate the video": {
+      "main": [
+        [
+          {
+            "node": "Still rendering?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for the render": {
+      "main": [
+        [
+          {
+            "node": "Did it render?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download the clip": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Write the links back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write the links back": {
+      "main": [
+        [
+          {
+            "node": "Tell the team in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Write the shot and caption",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shot, title and caption": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Write the shot and caption",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still rendering?": {
+      "main": [
+        [
+          {
+            "node": "Wait for the render",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Did it render?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Did it render?": {
+      "main": [
+        [
+          {
+            "node": "Download the clip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark as failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
