@@ -560,4 +560,115 @@ for a, b in [(sched, st), (st, run), (run, drive), (drive, slack)]:
     f.link(a, b)
 f.write()
 
+# ---------------------------------------------------------------------------
+# 6. New Shopify product -> its photo into Treza -> AI-written motion ->
+#    a product video that opens on the photo -> Slack for review
+#
+# Renders take only pictures in the Treza library, so the product photo is
+# imported first (Media: Import From URL) and its library link becomes the
+# clip's first frame. Built 2026-11-20 for www.trezalabs.com/shopify/automation.
+# ---------------------------------------------------------------------------
+f = Flow("shopify-product-to-video", "Create AI product videos for new Shopify products with OpenAI and Treza")
+f.overview(
+    "## A product video for every new Shopify product\n"
+    "When you add a product to your Shopify store, this workflow takes its first photo, has an AI model write how "
+    "the product should move on camera, and renders a short video with Treza that opens on that photo, so the "
+    "product looks like your product. The clip goes to Slack for review.\n\n"
+    "### How it works\n"
+    "1. **New product in Shopify** fires when a product is created, and **Has a photo?** skips products with none.\n"
+    "2. **Bring the photo into Treza** copies the product photo into your Treza library.\n"
+    "3. **Write the motion** turns the product's title and description into one camera move.\n"
+    "4. **Make the product video** gets a quote from Treza, stops if it is over **Max Cost**, and renders. "
+    "**Wait for the render** covers long renders.\n"
+    "5. **Did it render?** posts the finished clip to Slack, or the reason it stopped.\n\n"
+    "### Setup\n"
+    "1. Add your Shopify credential (an Admin API access token with read_products) to the trigger.\n"
+    "2. Add your OpenAI, Treza and Slack credentials, and pick the Slack channel in both Slack nodes.\n"
+    "3. Activate the workflow and add a product with a photo.\n\n"
+    "### Customization\n"
+    "Change the shape to 16:9 for the product page, the length, or the spend cap in **Settings**. Edit `style` to "
+    "match your brand. Swap Slack for email, Google Drive or a YouTube upload.\n\n"
+    + REQUIREMENTS
+    + "\n- Shopify, OpenAI and Slack credentials.",
+    h=1060,
+)
+f.section("Note: product", (-40, -140), 680, 660, "## 1. Pick up new products\nA new product with a photo goes on. Its first photo is copied into your Treza library, since renders start from library pictures.")
+f.section("Note: write", (660, -140), 400, 660, "## 2. Write the move\nThe chat model turns the title and description into one slow camera move that keeps the product as it is.")
+f.section("Note: render", (1080, -140), 620, 660, "## 3. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. Long renders are waited on.")
+f.section("Note: review", (1720, -140), 480, 660, "## 4. Review\nThe finished clip goes to Slack with the product's name. A failed render posts the reason instead.")
+
+trig = f.add("New product in Shopify", "n8n-nodes-base.shopifyTrigger", 1, (0, 100), {
+    "authentication": "accessToken",
+    "topic": "products/create",
+}, webhookId=str(uuid.uuid5(NS, "shopify-product/trigger")))
+st = settings(f, (220, 100), [
+    ("aspectRatio", "string", "9:16"),
+    ("seconds", "number", 4),
+    ("maxCostUsd", "number", 1),
+    ("waitMinutes", "number", 10),
+    ("style", "string", "Clean studio set, soft key light, premium ad look."),
+], keep_input=True)
+PHOTO = "($json.images && $json.images[0] && $json.images[0].src) || ($json.image && $json.image.src) || ''"
+has = f.add("Has a photo?", "n8n-nodes-base.filter", 2.2, (440, 100), condition("has-photo", f"={{{{ {PHOTO} }}}}", "string", "notEmpty"))
+imp = f.add("Bring the photo into Treza", TREZA, 1, (660, 100), {
+    "resource": "media",
+    "operation": "importFromUrl",
+    "sourceUrl": f"={{{{ {PHOTO} }}}}",
+})
+PRODUCT = "$('Settings').item.json"
+write = f.add("Write the motion", "@n8n/n8n-nodes-langchain.chainLlm", 1.9, (880, 100), {
+    "promptType": "define",
+    "text": f"=Product: {{{{ {PRODUCT}.title }}}}\nDescription: {{{{ ({PRODUCT}.body_html || '').replace(/<[^>]+>/g, ' ').slice(0, 600) }}}}\nStyle: {{{{ {S}.style }}}}",
+    "messages": {"messageValues": [{"message": (
+        "You write the prompt for an AI video model that animates a product photo. The clip opens on the photo.\n"
+        "Write one prompt of 30 to 50 words: one slow, simple camera move or product motion, the setting and the "
+        "light, in the given style. End with: Keep the product, its label and its colors exactly as they are.\n"
+        "No on-screen text, no people, no prices, no logos added. Reply with the prompt only."
+    )}]},
+    "batching": {},
+})
+model = f.add("Chat model", "@n8n/n8n-nodes-langchain.lmChatOpenAi", 1.3, (860, 340), {"model": rl("gpt-5-mini"), "options": {}})
+gen = f.add("Make the product video", TREZA, 1, (1140, 100), {
+    "resource": "video",
+    "operation": "generate",
+    "prompt": "={{ $json.text }}",
+    "aspectRatio": f"={{{{ {S}.aspectRatio }}}}",
+    "durationSec": f"={{{{ {S}.seconds }}}}",
+    "maxCostUsd": f"={{{{ {S}.maxCostUsd }}}}",
+    "additionalFields": {
+        "firstFrameUrl": "={{ $('Bring the photo into Treza').item.json.url }}",
+        "name": f"={{{{ {PRODUCT}.title }}}}",
+    },
+    "timeoutMinutes": f"={{{{ {S}.waitMinutes }}}}",
+})
+still = f.add("Still rendering?", "n8n-nodes-base.if", 2.2, (1360, 100), condition("shopify-still", "={{ $json.timedOut === true }}", "boolean", "true"))
+wait = f.add("Wait for the render", TREZA, 1, (1360, 340), {
+    "resource": "run",
+    "operation": "wait",
+    "pipelineId": {"__rl": True, "mode": "id", "value": "={{ $json.pipelineId }}"},
+    "runId": "={{ $json.runId }}",
+    "timeoutMinutes": 30,
+})
+rendered = f.add("Did it render?", "n8n-nodes-base.if", 2.2, (1560, 100), condition("shopify-rendered", "={{ !!$json.url }}", "boolean", "true"))
+ok = f.add("Send it for review", "n8n-nodes-base.slack", 2.3, (1800, 100), {
+    "select": "channel",
+    "channelId": rl(),
+    "text": f"=New product video for *{{{{ {PRODUCT}.title }}}}*: {{{{ $json.url }}}}",
+    "otherOptions": {},
+}, webhookId=str(uuid.uuid5(NS, "shopify-product/slack-ok")))
+bad = f.add("Say why it stopped", "n8n-nodes-base.slack", 2.3, (1800, 340), {
+    "select": "channel",
+    "channelId": rl(),
+    "text": f"=No video for *{{{{ {PRODUCT}.title }}}}*: {{{{ $json.timedOut ? 'still rendering, run ' + $json.runId : ($json.statusNote || $json.error || $json.status) }}}}",
+    "otherOptions": {},
+}, webhookId=str(uuid.uuid5(NS, "shopify-product/slack-bad")))
+for a, b in [(trig, st), (st, has), (has, imp), (imp, write), (write, gen), (gen, still), (wait, rendered)]:
+    f.link(a, b)
+f.link(model, write, "ai_languageModel")
+f.link(still, wait, out=0)
+f.link(still, rendered, out=1)
+f.link(rendered, ok, out=0)
+f.link(rendered, bad, out=1)
+f.write()
+
 print("\n".join(sorted(p.name for p in OUT.glob("*.json"))))

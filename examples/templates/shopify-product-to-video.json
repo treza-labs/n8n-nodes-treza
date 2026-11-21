@@ -1,0 +1,523 @@
+{
+  "name": "Create AI product videos for new Shopify products with OpenAI and Treza",
+  "nodes": [
+    {
+      "id": "dc073a6a-dfb5-5f4d-a7af-c0f3603210eb",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "width": 460,
+        "height": 1060,
+        "content": "## A product video for every new Shopify product\nWhen you add a product to your Shopify store, this workflow takes its first photo, has an AI model write how the product should move on camera, and renders a short video with Treza that opens on that photo, so the product looks like your product. The clip goes to Slack for review.\n\n### How it works\n1. **New product in Shopify** fires when a product is created, and **Has a photo?** skips products with none.\n2. **Bring the photo into Treza** copies the product photo into your Treza library.\n3. **Write the motion** turns the product's title and description into one camera move.\n4. **Make the product video** gets a quote from Treza, stops if it is over **Max Cost**, and renders. **Wait for the render** covers long renders.\n5. **Did it render?** posts the finished clip to Slack, or the reason it stopped.\n\n### Setup\n1. Add your Shopify credential (an Admin API access token with read_products) to the trigger.\n2. Add your OpenAI, Treza and Slack credentials, and pick the Slack channel in both Slack nodes.\n3. Activate the workflow and add a product with a photo.\n\n### Customization\nChange the shape to 16:9 for the product page, the length, or the spend cap in **Settings**. Edit `style` to match your brand. Swap Slack for email, Google Drive or a YouTube upload.\n\n### Requirements\n- The verified community node **Treza** (`@treza/n8n-nodes-treza`, tested with 0.1.3 on n8n 2.46.6). On n8n Cloud, search for Treza in the nodes panel. Self-hosted: Settings > Community Nodes. Guide: https://www.trezalabs.com/integrations/n8n\n- A Treza API key from https://www.trezalabs.com/platform/api-keys with the pipelines:read, pipelines:write and pipelines:run permissions, saved as a **Treza API** credential.\n- Shopify, OpenAI and Slack credentials."
+      }
+    },
+    {
+      "id": "25b35d7b-0bdf-5592-b3f3-3b237b529dbf",
+      "name": "Note: product",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -140
+      ],
+      "parameters": {
+        "width": 680,
+        "height": 660,
+        "content": "## 1. Pick up new products\nA new product with a photo goes on. Its first photo is copied into your Treza library, since renders start from library pictures.",
+        "color": 7
+      }
+    },
+    {
+      "id": "92ee894f-24b9-5fec-87e8-22d71538d0e4",
+      "name": "Note: write",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        -140
+      ],
+      "parameters": {
+        "width": 400,
+        "height": 660,
+        "content": "## 2. Write the move\nThe chat model turns the title and description into one slow camera move that keeps the product as it is.",
+        "color": 7
+      }
+    },
+    {
+      "id": "f6488b69-5e07-5fa5-8760-5aa9c89a3de5",
+      "name": "Note: render",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        -140
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 660,
+        "content": "## 3. Render\nTreza quotes the clip first and stops, with nothing charged, if it costs more than Max Cost. Long renders are waited on.",
+        "color": 7
+      }
+    },
+    {
+      "id": "3705640a-ddcb-554f-9088-7e1970713a28",
+      "name": "Note: review",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        -140
+      ],
+      "parameters": {
+        "width": 480,
+        "height": 660,
+        "content": "## 4. Review\nThe finished clip goes to Slack with the product's name. A failed render posts the reason instead.",
+        "color": 7
+      }
+    },
+    {
+      "id": "c28363df-226d-549c-9976-6ef73a478712",
+      "name": "New product in Shopify",
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "authentication": "accessToken",
+        "topic": "products/create"
+      },
+      "webhookId": "11c5f608-ac69-5009-9b5e-4ed0ce7cf9a9"
+    },
+    {
+      "id": "cde62e9c-6fdc-5ce4-ba73-a53673fafc31",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5ad67cd8-57bd-5b1e-8ce8-be7ad1426440",
+              "name": "aspectRatio",
+              "type": "string",
+              "value": "9:16"
+            },
+            {
+              "id": "1985eddf-d1ac-56ef-bfd6-afef8c4a10b4",
+              "name": "seconds",
+              "type": "number",
+              "value": 4
+            },
+            {
+              "id": "d6b8db48-2c61-55df-a982-81694b36fdf6",
+              "name": "maxCostUsd",
+              "type": "number",
+              "value": 1
+            },
+            {
+              "id": "44b0f687-caaa-5f24-b7a0-ca0b42eab213",
+              "name": "waitMinutes",
+              "type": "number",
+              "value": 10
+            },
+            {
+              "id": "d0bfb1ef-c941-5341-afe1-e30d9f53d683",
+              "name": "style",
+              "type": "string",
+              "value": "Clean studio set, soft key light, premium ad look."
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      }
+    },
+    {
+      "id": "44f1a284-91b1-5901-956f-6e357ae61acc",
+      "name": "Has a photo?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "14c9c731-8330-5d1d-898d-b56909e3017c",
+              "leftValue": "={{ ($json.images && $json.images[0] && $json.images[0].src) || ($json.image && $json.image.src) || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "449fe40e-acbb-5278-ba5d-b771cdb0201d",
+      "name": "Bring the photo into Treza",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "resource": "media",
+        "operation": "importFromUrl",
+        "sourceUrl": "={{ ($json.images && $json.images[0] && $json.images[0].src) || ($json.image && $json.image.src) || '' }}"
+      }
+    },
+    {
+      "id": "85b6c4f7-51cb-559a-8632-0239304c3d30",
+      "name": "Write the motion",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Product: {{ $('Settings').item.json.title }}\nDescription: {{ ($('Settings').item.json.body_html || '').replace(/<[^>]+>/g, ' ').slice(0, 600) }}\nStyle: {{ $('Settings').item.json.style }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You write the prompt for an AI video model that animates a product photo. The clip opens on the photo.\nWrite one prompt of 30 to 50 words: one slow, simple camera move or product motion, the setting and the light, in the given style. End with: Keep the product, its label and its colors exactly as they are.\nNo on-screen text, no people, no prices, no logos added. Reply with the prompt only."
+            }
+          ]
+        },
+        "batching": {}
+      }
+    },
+    {
+      "id": "9c875f11-6734-5f13-a229-2a659ed77b26",
+      "name": "Chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        860,
+        340
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7da743f9-7c28-5e51-ac96-5765094c3841",
+      "name": "Make the product video",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        100
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "prompt": "={{ $json.text }}",
+        "aspectRatio": "={{ $('Settings').item.json.aspectRatio }}",
+        "durationSec": "={{ $('Settings').item.json.seconds }}",
+        "maxCostUsd": "={{ $('Settings').item.json.maxCostUsd }}",
+        "additionalFields": {
+          "firstFrameUrl": "={{ $('Bring the photo into Treza').item.json.url }}",
+          "name": "={{ $('Settings').item.json.title }}"
+        },
+        "timeoutMinutes": "={{ $('Settings').item.json.waitMinutes }}"
+      }
+    },
+    {
+      "id": "962ddea0-ea97-535d-bd0d-a5be2824f8ec",
+      "name": "Still rendering?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1360,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "310e36d3-049d-50dc-9d98-8e5734548841",
+              "leftValue": "={{ $json.timedOut === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ebf242c7-2452-5def-ae8a-d894d13c35f9",
+      "name": "Wait for the render",
+      "type": "@treza/n8n-nodes-treza.treza",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        340
+      ],
+      "parameters": {
+        "resource": "run",
+        "operation": "wait",
+        "pipelineId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.pipelineId }}"
+        },
+        "runId": "={{ $json.runId }}",
+        "timeoutMinutes": 30
+      }
+    },
+    {
+      "id": "d8bbee07-afe2-5160-a2d0-2a99d207d69b",
+      "name": "Did it render?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1560,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "56ae7877-fbb8-58af-9e55-a746ca516a59",
+              "leftValue": "={{ !!$json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e7cd7083-baf6-5eaf-8db1-f0583038d792",
+      "name": "Send it for review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1800,
+        100
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "=New product video for *{{ $('Settings').item.json.title }}*: {{ $json.url }}",
+        "otherOptions": {}
+      },
+      "webhookId": "248061df-1751-5cc1-b950-826728518935"
+    },
+    {
+      "id": "25b36605-181d-51df-97a3-8c73cf383952",
+      "name": "Say why it stopped",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1800,
+        340
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "=No video for *{{ $('Settings').item.json.title }}*: {{ $json.timedOut ? 'still rendering, run ' + $json.runId : ($json.statusNote || $json.error || $json.status) }}",
+        "otherOptions": {}
+      },
+      "webhookId": "f1429949-6287-592a-82ee-6574ee08a25e"
+    }
+  ],
+  "connections": {
+    "New product in Shopify": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Has a photo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has a photo?": {
+      "main": [
+        [
+          {
+            "node": "Bring the photo into Treza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bring the photo into Treza": {
+      "main": [
+        [
+          {
+            "node": "Write the motion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write the motion": {
+      "main": [
+        [
+          {
+            "node": "Make the product video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make the product video": {
+      "main": [
+        [
+          {
+            "node": "Still rendering?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for the render": {
+      "main": [
+        [
+          {
+            "node": "Did it render?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Write the motion",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still rendering?": {
+      "main": [
+        [
+          {
+            "node": "Wait for the render",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Did it render?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Did it render?": {
+      "main": [
+        [
+          {
+            "node": "Send it for review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Say why it stopped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
