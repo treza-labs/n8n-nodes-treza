@@ -10,6 +10,12 @@ Treza connects the best AI video and image models (Veo, Seedance, Kling, Gemini,
 
 [Installation](#installation) · [Credentials](#credentials) · [Operations](#operations) · [Spending and safety](#spending-and-safety) · [Examples](#example-workflows) · [Compatibility](#compatibility)
 
+## What Treza makes
+
+![Four short clips made with Treza: a red hover car racing through a neon city, an astronaut walking over a Martian dune at sunset, an orchid mantis on a leaf, and espresso pouring into a cup](https://raw.githubusercontent.com/treza-labs/treza-labs/main/assets/treza-demo.gif)
+
+These clips were made with [Treza](https://www.trezalabs.com), and the [n8n integration page](https://www.trezalabs.com/integrations/n8n) shows how to set up this node.
+
 ## Installation
 
 In n8n, go to **Settings → Community Nodes → Install** and enter `@treza/n8n-nodes-treza`. For other setups, see n8n's [community nodes installation guide](https://docs.n8n.io/integrations/community-nodes/installation/).
